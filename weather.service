@@ -1,0 +1,15 @@
+[Unit]
+Description=Local weather dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=simon
+WorkingDirectory=/home/simon/projects/weather
+ExecStart=/usr/bin/python3 /home/simon/projects/weather/server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
