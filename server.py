@@ -29,16 +29,16 @@ CURRENT_VARS = ','.join([
 
 # WMO weather interpretation codes
 WMO_DESCRIPTIONS = {
-    0: 'Clear sky',
-    1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
-    45: 'Fog', 48: 'Depositing rime fog',
-    51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
-    61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
-    71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow',
-    77: 'Snow grains',
-    80: 'Slight showers', 81: 'Moderate showers', 82: 'Violent showers',
-    85: 'Slight snow showers', 86: 'Heavy snow showers',
-    95: 'Thunderstorm', 96: 'Thunderstorm with hail', 99: 'Thunderstorm with heavy hail',
+    0: 'Bloody lovely out there',
+    1: 'Pretty decent, actually', 2: 'Make your bloody mind up, sky', 3: 'Utterly grey bollocks',
+    45: 'Can\'t see shit', 48: 'Freezing foggy bastard',
+    51: 'Spitting like a grumpy camel', 53: 'Drizzling its arse off', 55: 'Soaked to the bloody bone',
+    61: 'Pissing it down a bit', 63: 'Properly pissing it down', 65: 'Absolutely pissing it down',
+    71: 'Snowing like a bastard', 73: 'Snowing its arse off', 75: 'Holy shit, it\'s snowing',
+    77: 'Snow grains — what the hell is that',
+    80: 'Brief shower, you miserable git', 81: 'Shower, get inside you muppet', 82: 'Shower from actual hell',
+    85: 'Snow shower, sodding typical', 86: 'Heavy snow shower, absolute nightmare',
+    95: 'Thunderstorm — what did we do to deserve this', 96: 'Thunderstorm with bloody hail', 99: 'Thunderstorm with heavy hail — we\'re all fucked',
 }
 
 _state = {'data': None, 'error': None, 'fetched_at': None}

@@ -542,8 +542,21 @@
       document.getElementById('location').textContent  = d.location_name || 'Weather';
       document.getElementById('temp').textContent      = fmt(d.temperature_2m, 0);
       document.getElementById('condition').textContent = d.description || '';
-      document.getElementById('feels').textContent =
-        d.apparent_temperature != null ? `Feels like ${fmt(d.apparent_temperature,0)}°C` : '';
+      const feels = d.apparent_temperature;
+      let feelsStr = '';
+      if (feels != null) {
+        let quip = '';
+        if (feels >= 35)      quip = "Christ, it's roasting";
+        else if (feels >= 28) quip = "Sweating your arse off";
+        else if (feels >= 22) quip = "Warm, you lucky bastard";
+        else if (feels >= 15) quip = "Not bad, surprisingly";
+        else if (feels >= 8)  quip = "Bit nippy, put a coat on";
+        else if (feels >= 0)  quip = "Bloody freezing";
+        else if (feels >= -8) quip = "Absolutely brass monkeys";
+        else                  quip = "What fresh hell is this";
+        feelsStr = `Feels like ${fmt(feels,0)}°C · ${quip}`;
+      }
+      document.getElementById('feels').textContent = feelsStr;
 
       /* Humidity ring: circumference ≈ 2π×42 = 263.9 */
       const hum = d.relative_humidity_2m;
