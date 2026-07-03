@@ -6,7 +6,7 @@ import threading
 import time
 import urllib.request
 import urllib.error
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE, 'config.json')
@@ -127,6 +127,6 @@ if __name__ == '__main__':
     cfg = load_config()
     port = cfg.get('server_port', 8186)
     threading.Thread(target=poll_loop, daemon=True).start()
-    srv = HTTPServer(('0.0.0.0', port), Handler)
+    srv = ThreadingHTTPServer(('0.0.0.0', port), Handler)
     print(f'Weather running on http://0.0.0.0:{port}')
     srv.serve_forever()

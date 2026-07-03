@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Weather</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -10,12 +12,14 @@
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
+      min-height: 100dvh;
       color: #fff;
       --accent: #42a5f5;
       --glow:   rgba(66,165,245,0.45);
       background: linear-gradient(160deg, #0d1b2a 0%, #1a2a3a 100%);
       transition: background 3s ease, --accent 3s;
       overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* ── Sky backgrounds ── */
@@ -110,6 +114,74 @@
       85%,88%              { opacity: 0.09; }
     }
 
+    /* ── Sky stage: sun / moon / clouds ── */
+    #sky-stage { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+
+    .sun-wrap {
+      position: absolute; top: -54px; right: -46px; width: 190px; height: 190px;
+      opacity: 0; transition: opacity 2.5s;
+    }
+    body[data-wx="clear"][data-day="1"] .sun-wrap,
+    body[data-wx="partly-cloudy"][data-day="1"] .sun-wrap { opacity: 1; }
+    body[data-wx="partly-cloudy"][data-day="1"] .sun-wrap { opacity: 0.55; }
+    .sun-core {
+      position: absolute; inset: 32%; border-radius: 50%;
+      background: radial-gradient(circle, #fffcf0 0%, #ffe066 40%, #ffb300 75%, transparent 100%);
+      box-shadow: 0 0 46px 18px rgba(255,200,50,0.42), 0 0 90px 40px rgba(255,170,40,0.18);
+      animation: sun-pulse 6s ease-in-out infinite;
+    }
+    @keyframes sun-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+    .sun-rays { position: absolute; inset: 0; animation: sun-rotate 90s linear infinite; }
+    .ray {
+      position: absolute; left: 50%; top: 50%; width: 3px; height: 48%;
+      background: linear-gradient(to top, transparent, rgba(255,214,90,0.42));
+      transform-origin: bottom center;
+    }
+    @keyframes sun-rotate { to { transform: rotate(360deg); } }
+
+    .moon-wrap {
+      position: absolute; top: -38px; right: -30px; width: 116px; height: 116px;
+      opacity: 0; transition: opacity 2.5s;
+      filter: drop-shadow(0 0 30px rgba(210,222,255,0.4)) drop-shadow(0 0 56px rgba(190,205,255,0.2));
+      animation: moon-breathe 8s ease-in-out infinite;
+    }
+    body[data-wx="clear"][data-day="0"] .moon-wrap,
+    body[data-wx="partly-cloudy"][data-day="0"] .moon-wrap { opacity: 1; }
+    body[data-wx="partly-cloudy"][data-day="0"] .moon-wrap { opacity: 0.5; }
+    @keyframes moon-breathe { 0%,100% { filter: drop-shadow(0 0 30px rgba(210,222,255,0.4)) drop-shadow(0 0 56px rgba(190,205,255,0.2)); } 50% { filter: drop-shadow(0 0 40px rgba(210,222,255,0.55)) drop-shadow(0 0 70px rgba(190,205,255,0.28)); } }
+
+    @media (max-width: 420px) {
+      .sun-wrap  { width: 140px; height: 140px; top: -40px; right: -36px; }
+      .moon-wrap { width: 90px;  height: 90px;  top: -28px; right: -24px; }
+    }
+
+    .cloud {
+      position: absolute; background: rgba(255,255,255,0.85); border-radius: 50px;
+      filter: blur(0.4px);
+    }
+    .cloud::before, .cloud::after { content: ''; position: absolute; background: inherit; border-radius: 50%; }
+    .cloud::before { width: 55%; height: 140%; top: -70%; left: 12%; }
+    .cloud::after  { width: 42%; height: 110%; top: -50%; right: 15%; }
+    @keyframes cloud-drift { from { transform: translateX(-24vw); } to { transform: translateX(124vw); } }
+
+    .bolt-flash {
+      position: absolute; z-index: 2; pointer-events: none;
+      animation: lightning 7s ease infinite;
+      filter: drop-shadow(0 0 14px rgba(255,255,255,0.9));
+    }
+
+    .wind-line {
+      position: absolute; height: 1.5px;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
+      animation: wind-blow linear infinite;
+    }
+    @keyframes wind-blow {
+      from { transform: translateX(-15vw); opacity: 0; }
+      10%  { opacity: 0.6; }
+      90%  { opacity: 0.6; }
+      to   { transform: translateX(115vw); opacity: 0; }
+    }
+
     /* ── Ghost emoji ── */
     #wx-ghost {
       position: fixed; bottom: -4%; right: -2%;
@@ -131,9 +203,13 @@
     .page {
       position: relative; z-index: 2;
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 3rem 1.5rem 2.5rem;
+      padding: max(3rem, calc(env(safe-area-inset-top) + 1.5rem))
+               max(1.5rem, env(safe-area-inset-right))
+               max(2.5rem, calc(env(safe-area-inset-bottom) + 1rem))
+               max(1.5rem, env(safe-area-inset-left));
       gap: 0;
     }
 
@@ -141,11 +217,13 @@
       font-size: 0.72rem; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.25em;
       color: rgba(255,255,255,0.3);
+      text-shadow: 0 1px 6px rgba(0,0,0,0.5);
       margin-bottom: 0.3rem;
     }
     #clock {
       font-size: 0.72rem; color: rgba(255,255,255,0.18);
       letter-spacing: 0.08em; font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.5);
       margin-bottom: 2.5rem;
     }
 
@@ -260,7 +338,7 @@
     .t-wind .tile-label { font-size: 0.65rem; }
     .t-wind .tile-value { font-size: 1.4rem; }
 
-    .compass-svg { display: block; }
+    .compass-svg { display: block; width: min(120px, 60vw); height: auto; }
     .compass-ring  { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 1.5; }
     .compass-tick  { stroke: rgba(255,255,255,0.12); stroke-width: 1; stroke-linecap: round; }
     .compass-label { fill: rgba(255,255,255,0.22); font-size: 8px; font-family: system-ui; }
@@ -302,14 +380,87 @@
     }
 
     @media (max-width: 500px) {
-      .p-hero { gap: 1.2rem; }
-      .wx-icon { font-size: 76px; }
-      .p-stats { grid-template-columns: 1fr 1.5fr 1fr; gap: 0.7rem; }
+      /* Top section */
+      .p-hero  { gap: 1rem; }
+      .wx-icon { font-size: 72px; }
+      #clock   { margin-bottom: 1.5rem; }
+      .p-feels { margin-bottom: 1.8rem; }
+      .p-footer { margin-top: 1.2rem; }
+
+      /* 2-column grid: wind spans full width on top,
+         then hum|uv, then pres|rain                   */
+      .p-stats {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 0.65rem;
+      }
+
+      /* Wind — full-width pill, horizontal layout */
+      .t-wind {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        flex-direction: row;
+        justify-content: space-evenly;
+        align-items: center;
+        border-radius: 24px;
+        padding: 1rem 1.5rem;
+        gap: 1.2rem;
+      }
+      .t-wind .tile-label { font-size: 0.62rem; }
+      .t-wind .tile-value { font-size: 1.05rem; white-space: nowrap; }
+
+      /* Humidity circle — col 1, row 2 */
+      .t-hum { grid-column: 1; grid-row: 2; }
+
+      /* UV circle — col 2, row 2 */
+      .t-uv  {
+        grid-column: 2; grid-row: 2;
+        border-radius: 50%;
+        aspect-ratio: 1;
+        padding: 0;
+      }
+      .t-uv .tile-value { font-size: 1.8rem; }
+
+      /* Pressure pill — col 1, row 3 */
+      .t-pres { grid-column: 1; grid-row: 3; border-radius: 24px; }
+
+      /* Rain pill — col 2, row 3 */
+      .t-rain { grid-column: 2; grid-row: 3; border-radius: 24px; }
+
+      /* Shrink compass to fit inside horizontal wind tile */
+      .compass-svg { width: 80px; }
     }
   </style>
 </head>
 <body>
 
+<div id="sky-stage" aria-hidden="true">
+  <div class="sun-wrap" id="sunWrap">
+    <div class="sun-core"></div>
+    <div class="sun-rays" id="sunRays"></div>
+  </div>
+  <div class="moon-wrap" id="moonWrap">
+    <svg viewBox="0 0 150 150" width="100%" height="100%">
+      <defs>
+        <radialGradient id="moonGrad" cx="38%" cy="35%" r="70%">
+          <stop offset="0%" stop-color="#fdfdff"/>
+          <stop offset="60%" stop-color="#dfe4f0"/>
+          <stop offset="100%" stop-color="#b8bfd4"/>
+        </radialGradient>
+      </defs>
+      <circle cx="75" cy="75" r="62" fill="url(#moonGrad)"/>
+      <circle cx="55" cy="52" r="9"  fill="#c7cce0" opacity="0.55"/>
+      <circle cx="92" cy="68" r="13" fill="#c7cce0" opacity="0.45"/>
+      <circle cx="62" cy="95" r="7"  fill="#c7cce0" opacity="0.5"/>
+      <circle cx="95" cy="100" r="5" fill="#c7cce0" opacity="0.4"/>
+    </svg>
+  </div>
+  <div id="clouds"></div>
+  <svg class="bolt-flash" id="boltFlash" width="60" height="140" viewBox="0 0 60 140" style="display:none">
+    <polygon points="30,0 8,68 26,68 14,140 54,56 32,56 44,0" fill="#fff9de"/>
+  </svg>
+  <div id="windLines"></div>
+</div>
 <div id="wx-ghost" aria-hidden="true">🌡️</div>
 <div id="particles" aria-hidden="true"></div>
 
@@ -348,7 +499,7 @@
       <div class="tile-label">Wind</div>
       <div class="tile-value" id="wind-speed">—</div>
 
-      <svg class="compass-svg" id="compass" width="120" height="120" viewBox="0 0 120 120">
+      <svg class="compass-svg" id="compass" viewBox="0 0 120 120">
         <!-- Outer ring -->
         <circle class="compass-ring" cx="60" cy="60" r="54"/>
         <!-- 8 tick marks -->
@@ -405,11 +556,14 @@
 
 <script>
   /* Clock */
+  const narrow = () => window.innerWidth <= 500;
   (function tick() {
     const n = new Date();
-    document.getElementById('clock').textContent =
-      n.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }) +
-      ' · ' + n.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    document.getElementById('clock').textContent = narrow()
+      ? n.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) +
+        ' · ' + n.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+      : n.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }) +
+        ' · ' + n.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
     setTimeout(tick, 1000);
   })();
 
@@ -448,11 +602,11 @@
     for (let i = 0; i < n; i++) {
       const d = document.createElement('div');
       d.className = 'rain-drop';
-      const h = heavy ? 18+Math.random()*22 : 10+Math.random()*14;
-      const dur = heavy ? 0.35+Math.random()*0.3 : 0.55+Math.random()*0.5;
+      const h = heavy ? 22+Math.random()*26 : 12+Math.random()*16;
+      const dur = heavy ? 0.3+Math.random()*0.25 : 0.5+Math.random()*0.45;
       d.style.cssText = `left:${Math.random()*115-7}%;height:${h}px;` +
         `animation-duration:${dur.toFixed(2)}s;animation-delay:${(-Math.random()*dur).toFixed(2)}s;` +
-        `opacity:${(0.3+Math.random()*0.45).toFixed(2)};`;
+        `opacity:${(0.35+Math.random()*0.5).toFixed(2)};`;
       P.appendChild(d);
     }
     if (heavy) {
@@ -467,11 +621,11 @@
     for (let i = 0; i < n; i++) {
       const d = document.createElement('div');
       d.className = 'snow-flake';
-      const sz = 10+Math.random()*14, dur = 4+Math.random()*6;
+      const sz = 10+Math.random()*16, dur = 3.5+Math.random()*6;
       d.textContent = g[Math.floor(Math.random()*g.length)];
       d.style.cssText = `left:${Math.random()*105}%;font-size:${sz}px;` +
         `animation-duration:${dur.toFixed(1)}s;animation-delay:${(-Math.random()*dur).toFixed(2)}s;` +
-        `opacity:${(0.4+Math.random()*0.5).toFixed(2)};`;
+        `opacity:${(0.4+Math.random()*0.55).toFixed(2)};`;
       P.appendChild(d);
     }
   }
@@ -502,19 +656,106 @@
     }
   }
 
+  /* Sky stage: sun rays, clouds, lightning bolt */
+  const sunRaysEl = document.getElementById('sunRays');
+  for (let i = 0; i < 12; i++) {
+    const r = document.createElement('div');
+    r.className = 'ray';
+    r.style.transform = `rotate(${i * 30}deg)`;
+    sunRaysEl.appendChild(r);
+  }
+
+  const cloudsEl = document.getElementById('clouds');
+  function addClouds(n, { color = 'rgba(255,255,255,0.75)', minTop = 1, maxTop = 15, minScale = 0.7, maxScale = 1.5, minDur = 70, maxDur = 150 } = {}) {
+    cloudsEl.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement('div');
+      c.className = 'cloud';
+      const scale = minScale + Math.random() * (maxScale - minScale);
+      const w = 130 * scale, h = 46 * scale;
+      const top = minTop + Math.random() * (maxTop - minTop);
+      const dur = minDur + Math.random() * (maxDur - minDur);
+      const op = 0.5 + Math.random() * 0.45;
+      c.style.cssText = `width:${w}px;height:${h}px;top:${top}%;background:${color};opacity:${op};` +
+        `animation:cloud-drift ${dur.toFixed(0)}s linear infinite;animation-delay:${(-Math.random()*dur).toFixed(0)}s;`;
+      cloudsEl.appendChild(c);
+    }
+  }
+  function clearClouds() { cloudsEl.innerHTML = ''; }
+
+  let boltTimer = null;
+  function startBolt() {
+    const bolt = document.getElementById('boltFlash');
+    bolt.style.display = '';
+    const place = () => {
+      bolt.style.left = (10 + Math.random() * 70) + '%';
+      bolt.style.top = (2 + Math.random() * 14) + '%';
+      bolt.style.transform = `rotate(${(-8 + Math.random()*16).toFixed(1)}deg) scale(${(0.8+Math.random()*0.6).toFixed(2)})`;
+    };
+    place();
+    boltTimer = setInterval(place, 7000);
+  }
+  function stopBolt() {
+    document.getElementById('boltFlash').style.display = 'none';
+    if (boltTimer) { clearInterval(boltTimer); boltTimer = null; }
+  }
+
+  const windLinesEl = document.getElementById('windLines');
+  function setWindLines(active) {
+    windLinesEl.innerHTML = '';
+    if (!active) return;
+    for (let i = 0; i < 7; i++) {
+      const l = document.createElement('div');
+      l.className = 'wind-line';
+      const w = 60 + Math.random() * 140, dur = 2.5 + Math.random() * 2.5;
+      l.style.cssText = `width:${w}px;top:${(8+Math.random()*70).toFixed(0)}%;` +
+        `animation-duration:${dur.toFixed(2)}s;animation-delay:${(-Math.random()*dur).toFixed(2)}s;`;
+      windLinesEl.appendChild(l);
+    }
+  }
+
   function applyTheme(cond, day) {
     document.body.dataset.wx  = cond;
     document.body.dataset.day = day ? '1' : '0';
+    stopBolt();
     switch (cond) {
-      case 'clear':         day ? clearP() : addStars(90);  break;
-      case 'partly-cloudy': day ? clearP() : addStars(45);  break;
-      case 'fog':           addFog(5);                       break;
-      case 'drizzle':       addRain(15, false);              break;
+      case 'clear':
+        day ? clearP() : addStars(90);
+        clearClouds();
+        break;
+      case 'partly-cloudy':
+        day ? clearP() : addStars(45);
+        addClouds(4, { color: day ? 'rgba(255,255,255,0.85)' : 'rgba(210,218,235,0.5)' });
+        break;
+      case 'overcast':
+        clearP();
+        addClouds(6, { color: 'rgba(180,188,198,0.6)', minTop: 1, maxTop: 15, minScale: 1, maxScale: 1.9, minDur: 90, maxDur: 170 });
+        break;
+      case 'fog':
+        addFog(6);
+        addClouds(3, { color: 'rgba(180,190,198,0.4)', minTop: 1, maxTop: 14 });
+        break;
+      case 'drizzle':
+        addRain(15, false);
+        addClouds(5, { color: 'rgba(120,140,165,0.55)', minTop: 1, maxTop: 15, minDur: 60, maxDur: 120 });
+        break;
       case 'rain':
-      case 'showers':       addRain(28, false);              break;
-      case 'snow':          addSnow(25);                     break;
-      case 'storm':         addRain(38, true);               break;
-      default:              clearP();
+      case 'showers':
+        addRain(32, false);
+        addClouds(6, { color: 'rgba(90,108,135,0.6)', minTop: 0, maxTop: 14, minDur: 55, maxDur: 110 });
+        break;
+      case 'snow':
+        addSnow(32);
+        addClouds(5, { color: 'rgba(200,208,222,0.5)', minTop: 1, maxTop: 15, minDur: 80, maxDur: 150 });
+        break;
+      case 'storm':
+        addRain(42, true);
+        addClouds(6, { color: 'rgba(45,42,60,0.65)', minTop: 0, maxTop: 13, minDur: 45, maxDur: 90 });
+        startBolt();
+        break;
+      default:
+        clearP();
+        clearClouds();
     }
   }
 
@@ -561,6 +802,7 @@
         d.wind_gusts_10m != null ? `Gusts ${fmt(d.wind_gusts_10m,0)} mph` : '';
       if (dir != null)
         document.getElementById('compass-needle').setAttribute('transform', `rotate(${dir},60,60)`);
+      setWindLines((d.wind_gusts_10m ?? d.wind_speed_10m ?? 0) >= 22);
 
       /* Other stats */
       document.getElementById('pressure').textContent = fmt(d.surface_pressure, 0);
