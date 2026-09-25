@@ -26,6 +26,23 @@ CURRENT_VARS = ','.join([
     'uv_index',
     'is_day',
 ])
+HOURLY_VARS = ','.join([
+    'temperature_2m',
+    'precipitation_probability',
+    'weather_code',
+    'wind_gusts_10m',
+    'is_day',
+])
+DAILY_VARS = ','.join([
+    'weather_code',
+    'temperature_2m_max',
+    'temperature_2m_min',
+    'precipitation_probability_max',
+    'precipitation_sum',
+    'wind_gusts_10m_max',
+    'sunrise',
+    'sunset',
+])
 
 # WMO weather interpretation codes
 WMO_DESCRIPTIONS = {
@@ -41,7 +58,7 @@ WMO_DESCRIPTIONS = {
     95: 'Thunderstorm', 96: 'Thunderstorm with hail', 99: 'Thunderstorm with heavy hail',
 }
 
-_state = {'data': None, 'error': None, 'fetched_at': None}
+_state = {'data': None, 'forecast': None, 'error': None, 'fetched_at': None}
 _lock = threading.Lock()
 
 
@@ -55,6 +72,9 @@ def fetch_weather(cfg):
         f"latitude={cfg['latitude']}"
         f"&longitude={cfg['longitude']}"
         f"&current={CURRENT_VARS}"
+        f"&hourly={HOURLY_VARS}"
+        f"&daily={DAILY_VARS}"
+        f"&forecast_days=7"
         f"&wind_speed_unit=mph"
         f"&timezone=Europe%2FLondon"
     )
@@ -76,6 +96,8 @@ def poll_loop():
             current['elevation'] = raw.get('elevation')
             with _lock:
                 _state['data'] = current
+                # Kept apart from 'data' so home_menu's index card payload is unchanged
+                _state['forecast'] = {'hourly': raw.get('hourly'), 'daily': raw.get('daily')}
                 _state['error'] = None
                 _state['fetched_at'] = time.time()
             interval = cfg.get('poll_interval', 600)
@@ -94,6 +116,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/':
             self._file('index.html', 'text/html; charset=utf-8')
+        elif self.path == '/apple-touch-icon.png':
+            self._file('apple-touch-icon.png', 'image/png')
         elif self.path == '/api/weather':
             with _lock:
                 payload = dict(_state)

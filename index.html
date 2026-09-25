@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Weather">
+  <meta name="theme-color" content="#0d2a55">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
   <title>Weather</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -199,236 +205,176 @@
       50%     { transform: rotate( 4deg) translateY(-15px); }
     }
 
-    /* ── Page ── */
+    /* ── App shell ──
+       One column, phone-first. Everything readable sits on dark glass so it
+       holds up over the bright daytime skies; the sky art stays behind. */
+    :root {
+      --ink:   #ffffff;
+      --ink-2: rgba(255,255,255,0.80);
+      --ink-3: rgba(255,255,255,0.58);
+      --glass: rgba(10,24,52,0.30);
+      --hair:  rgba(255,255,255,0.14);
+      --rain:  #8fd0ff;
+      --tab:   #ffd21f;
+      --tab-ink: #0b1633;
+      --bar:   rgba(8,16,40,0.84);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; }
+
     .page {
       position: relative; z-index: 2;
-      min-height: 100vh;
-      min-height: 100dvh;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: max(3rem, calc(env(safe-area-inset-top) + 1.5rem))
-               max(1.5rem, env(safe-area-inset-right))
-               max(2.5rem, calc(env(safe-area-inset-bottom) + 1rem))
-               max(1.5rem, env(safe-area-inset-left));
-      gap: 0;
+      width: 100%; max-width: 540px; margin: 0 auto;
+      padding: calc(env(safe-area-inset-top) + 2.2rem)
+               max(1rem, env(safe-area-inset-right))
+               calc(env(safe-area-inset-bottom) + 1.5rem)
+               max(1rem, env(safe-area-inset-left));
+      display: flex; flex-direction: column; gap: 0.75rem;
     }
 
-    .p-location {
-      font-size: 0.72rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.25em;
-      color: rgba(255,255,255,0.3);
-      text-shadow: 0 1px 6px rgba(0,0,0,0.5);
-      margin-bottom: 0.3rem;
+    /* Hero */
+    .hero {
+      text-align: center; color: var(--ink);
+      text-shadow: 0 1px 14px rgba(0,0,0,0.28);
+      padding-bottom: 0.4rem;
     }
-    #clock {
-      font-size: 0.72rem; color: rgba(255,255,255,0.18);
-      letter-spacing: 0.08em; font-variant-numeric: tabular-nums;
-      text-shadow: 0 1px 6px rgba(0,0,0,0.5);
-      margin-bottom: 2.5rem;
-    }
-
-    /* ── Hero ── */
-    .p-hero {
-      display: flex; align-items: center; justify-content: center;
-      gap: 2rem; margin-bottom: 1rem;
-    }
-    .wx-icon {
-      font-size: 108px; line-height: 1; user-select: none;
-      filter: drop-shadow(0 0 22px var(--glow)) drop-shadow(0 4px 12px rgba(0,0,0,0.4));
-      animation: float 4s ease-in-out infinite;
-      transition: filter 3s;
-    }
-    body[data-wx="storm"] .wx-icon { animation: wx-shake 0.2s ease-in-out infinite alternate; }
-    body[data-wx="rain"] .wx-icon, body[data-wx="showers"] .wx-icon { animation: float 2.8s ease-in-out infinite; }
-    @keyframes float    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
-    @keyframes wx-shake { from{transform:rotate(-2deg)} to{transform:rotate(2deg)} }
-
-    .p-temp-wrap { display: flex; align-items: flex-start; line-height: 1; }
-    .p-temp {
-      font-size: clamp(5rem, 14vw, 8.5rem);
-      font-weight: 800; letter-spacing: -4px;
-      color: var(--accent);
-      text-shadow: 0 0 60px var(--glow);
+    .hero h1 { font-size: 1.85rem; font-weight: 500; letter-spacing: 0.005em; }
+    #clock { font-size: 0.8rem; color: var(--ink-2); margin-top: 0.1rem; font-variant-numeric: tabular-nums; }
+    .hero-temp {
+      font-size: 6.4rem; font-weight: 200; line-height: 1;
+      letter-spacing: -0.04em; margin: 0.35rem 0 0.1rem 0.25em;
       font-variant-numeric: tabular-nums;
-      transition: color 3s, text-shadow 3s;
     }
-    .p-unit {
-      font-size: clamp(1.8rem, 4vw, 2.8rem);
-      font-weight: 300; color: rgba(255,255,255,0.28);
-      margin-top: 0.7rem; padding-left: 0.05em;
-    }
+    .hero-cond { font-size: 1.1rem; font-weight: 500; color: var(--ink-2); }
+    .hero-hilo { font-size: 1.05rem; font-weight: 500; margin-top: 0.1rem; font-variant-numeric: tabular-nums; }
+    .hero-hilo span + span { margin-left: 0.7rem; }
 
-    .p-condition {
-      font-size: 1.1rem; color: rgba(255,255,255,0.6);
-      margin-bottom: 0.3rem; text-align: center;
+    /* Caption bar: the one loud thing on the page */
+    .caption { margin: 0.2rem 0 0.35rem; }
+    .cap-bar {
+      background: var(--bar);
+      border-left: 4px solid var(--tab);
+      padding: 0.7rem 1rem 0.75rem;
     }
-    .p-feels {
-      font-size: 0.8rem; color: rgba(255,255,255,0.28);
-      margin-bottom: 3rem;
+    #condition {
+      font: 600 1.4rem/1.15 'Barlow Condensed', 'Arial Narrow', sans-serif;
+      color: var(--ink);
     }
+    #feels { font-size: 0.85rem; color: var(--ink-2); margin-top: 0.35rem; line-height: 1.35; }
+    .caption.wipe .cap-bar { animation: wipe 0.55s cubic-bezier(.2,.7,.2,1) both; }
+    @keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 
-    /* ── Stats: asymmetric grid ── */
-    .p-stats {
+    /* Glass panels */
+    .panel {
+      background: var(--glass);
+      border: 1px solid var(--hair);
+      border-radius: 20px;
+      backdrop-filter: blur(22px) saturate(1.3);
+      -webkit-backdrop-filter: blur(22px) saturate(1.3);
+      padding: 0.85rem 1rem;
+      color: var(--ink);
+    }
+    .panel h2 { font-size: 0.8rem; font-weight: 600; color: var(--ink-3); margin-bottom: 0.45rem; }
+    .panel-summary { font-size: 0.92rem; line-height: 1.4; color: var(--ink); }
+    .panel-summary + .panel-summary { margin-top: 0.3rem; }
+    .panel hr { border: 0; border-top: 1px solid var(--hair); margin: 0.75rem 0 0.6rem; }
+
+    /* Hourly */
+    .hours {
+      display: flex; gap: 0.2rem;
+      overflow-x: auto; scrollbar-width: none;
+      margin: 0 -1rem; padding: 0 0.6rem;
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+    }
+    .hours::-webkit-scrollbar { display: none; }
+    .hour {
+      flex: 0 0 3.4rem; scroll-snap-align: start;
+      display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .hour .h-time { font-size: 0.85rem; font-weight: 600; }
+    .hour .h-icon { font-size: 1.45rem; line-height: 1.6rem; height: 1.6rem; }
+    .hour .h-rain { font-size: 0.72rem; font-weight: 600; color: var(--rain); height: 0.9rem; }
+    .hour .h-temp { font-size: 1.1rem; font-weight: 600; }
+
+    /* Week */
+    .day {
       display: grid;
-      grid-template-columns: 1fr 1.65fr 1fr;
-      grid-template-rows: 1fr auto;
-      gap: 1rem;
-      width: 100%; max-width: 680px;
-      align-items: stretch;
+      grid-template-columns: 2.9rem 2.3rem 2.2rem 1fr 2.2rem;
+      align-items: center; column-gap: 0.55rem;
+      padding: 0.55rem 0;
+      border-top: 1px solid var(--hair);
+      font-variant-numeric: tabular-nums;
+    }
+    .day:first-of-type { border-top: 0; }
+    .d-name { font-size: 1.05rem; font-weight: 600; }
+    .d-icon { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+    .d-icon b { font-size: 1.3rem; font-weight: 400; }
+    .d-icon i { font-style: normal; font-size: 0.68rem; font-weight: 600; color: var(--rain); margin-top: 2px; }
+    .d-lo { font-size: 1.05rem; font-weight: 500; color: var(--ink-3); text-align: right; }
+    .d-hi { font-size: 1.05rem; font-weight: 600; }
+    .d-track { position: relative; height: 5px; border-radius: 3px; background: rgba(0,0,0,0.22); }
+    .d-fill  { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+    .d-quip {
+      grid-column: 2 / -1; font-size: 0.82rem; color: var(--ink-2);
+      margin-top: 0.2rem; line-height: 1.3;
     }
 
-    /* Shared tile base */
-    .tile {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.07);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center;
-      transition: background 2.5s;
+    /* Widget grid */
+    .widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .widget {
+      aspect-ratio: 1; display: flex; flex-direction: column;
+      padding: 0.8rem 0.9rem; min-width: 0;
     }
-    .tile-label {
-      font-size: 0.62rem; text-transform: uppercase;
-      letter-spacing: 0.14em; color: rgba(255,255,255,0.22);
-    }
-    .tile-value {
-      font-size: 1.55rem; font-weight: 700;
-      color: var(--accent); font-variant-numeric: tabular-nums;
-      line-height: 1.15;
-      transition: color 3s;
-    }
-    .tile-sub { font-size: 0.72rem; color: rgba(255,255,255,0.25); }
+    .widget h2 { margin-bottom: 0.2rem; }
+    .w-val { font-size: 2rem; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .w-val small { font-size: 1rem; font-weight: 500; color: var(--ink-2); margin-left: 0.15rem; }
+    .w-sub { font-size: 0.82rem; color: var(--ink-2); line-height: 1.3; margin-top: auto; }
+    .w-note { font-size: 0.9rem; font-weight: 600; margin-top: 0.1rem; }
 
-    /* Humidity — circle (col 1, row 1) */
-    .t-hum {
-      grid-column: 1; grid-row: 1;
-      border-radius: 50%;
-      aspect-ratio: 1;
-      padding: 0;
-      position: relative;
-      overflow: hidden;
+    .w-wind { position: relative; }
+    .w-wind .compass-svg { position: absolute; right: 0.6rem; top: 0.6rem; width: 44%; height: auto; }
+    .compass-ring  { fill: none; stroke: rgba(255,255,255,0.18); stroke-width: 1.5; }
+    .compass-tick  { stroke: rgba(255,255,255,0.3); stroke-width: 1; stroke-linecap: round; }
+    .compass-label { fill: rgba(255,255,255,0.55); font-size: 10px; font-family: system-ui; }
+    .compass-dot   { fill: rgba(255,255,255,0.6); }
+    #compass-north { fill: var(--tab); }
+    #compass-south { fill: rgba(255,255,255,0.35); }
+
+    .uv-track {
+      position: relative; height: 5px; border-radius: 3px; margin: 0.6rem 0 0.2rem;
+      background: linear-gradient(90deg, #4cd964, #ffd21f 35%, #ff9500 60%, #ff3b30 80%, #af52de);
     }
+    .uv-dot {
+      position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
+      border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
+    }
+
+    .ring-wrap { position: relative; width: 58%; margin: 0.1rem auto 0; }
     .ring-svg { display: block; width: 100%; height: auto; }
-    .ring-track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 5; }
+    .ring-track { fill: none; stroke: rgba(255,255,255,0.15); stroke-width: 7; }
     .ring-fill  {
-      fill: none; stroke: var(--accent); stroke-width: 5;
-      stroke-linecap: round;
-      stroke-dasharray: 0 264;
-      transform: rotate(-90deg); transform-origin: 50% 50%;
-      transition: stroke-dasharray 1s ease, stroke 3s;
+      fill: none; stroke: var(--rain); stroke-width: 7; stroke-linecap: round;
+      stroke-dasharray: 0 264; transform: rotate(-90deg); transform-origin: 50% 50%;
+      transition: stroke-dasharray 1s ease;
     }
-    .ring-center {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 0;
-    }
-    .ring-center .tile-value { font-size: 1.8rem; }
-    .ring-center .tile-sub   { margin-top: -2px; }
-    .ring-center .tile-label { margin-top: 3px; }
-
-    /* Wind — tall pill (col 2, rows 1–2) */
-    .t-wind {
-      grid-column: 2; grid-row: 1 / 3;
-      border-radius: 44px;
-      padding: 1.6rem 1.2rem;
-      gap: 0.6rem;
-    }
-    .t-wind .tile-label { font-size: 0.65rem; }
-    .t-wind .tile-value { font-size: 1.4rem; }
-
-    .compass-svg { display: block; width: min(120px, 60vw); height: auto; }
-    .compass-ring  { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 1.5; }
-    .compass-tick  { stroke: rgba(255,255,255,0.12); stroke-width: 1; stroke-linecap: round; }
-    .compass-label { fill: rgba(255,255,255,0.22); font-size: 8px; font-family: system-ui; }
-    .compass-dot   { fill: rgba(255,255,255,0.18); }
-    #compass-north { fill: var(--accent); opacity: 0.95; transition: fill 3s; }
-    #compass-south { fill: rgba(255,255,255,0.12); }
-
-    /* UV — circle (col 3, row 1) */
-    .t-uv {
-      grid-column: 3; grid-row: 1;
-      border-radius: 50%;
-      aspect-ratio: 1;
-      padding: 0.8rem;
-      gap: 0.2rem;
-    }
-    .t-uv .tile-value { font-size: 2rem; }
-
-    /* Pressure pill (col 1, row 2) */
-    .t-pres {
-      grid-column: 1; grid-row: 2;
-      border-radius: 30px;
-      padding: 1rem 0.8rem;
-      gap: 0.2rem;
+    .ring-wrap .w-val {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
     }
 
-    /* Rain pill (col 3, row 2) */
-    .t-rain {
-      grid-column: 3; grid-row: 2;
-      border-radius: 30px;
-      padding: 1rem 0.8rem;
-      gap: 0.2rem;
-    }
-
-    /* ── Footer ── */
     .p-footer {
-      margin-top: 2.5rem;
-      font-size: 0.62rem; color: rgba(255,255,255,0.1);
-      letter-spacing: 0.06em; text-align: center;
+      text-align: center; font-size: 0.75rem; color: var(--ink-3);
+      margin-top: 0.5rem; line-height: 1.5;
     }
 
-    @media (max-width: 500px) {
-      /* Top section */
-      .p-hero  { gap: 1rem; }
-      .wx-icon { font-size: 72px; }
-      #clock   { margin-bottom: 1.5rem; }
-      .p-feels { margin-bottom: 1.8rem; }
-      .p-footer { margin-top: 1.2rem; }
-
-      /* 2-column grid: wind spans full width on top,
-         then hum|uv, then pres|rain                   */
-      .p-stats {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto auto;
-        gap: 0.65rem;
-      }
-
-      /* Wind — full-width pill, horizontal layout */
-      .t-wind {
-        grid-column: 1 / -1;
-        grid-row: 1;
-        flex-direction: row;
-        justify-content: space-evenly;
-        align-items: center;
-        border-radius: 24px;
-        padding: 1rem 1.5rem;
-        gap: 1.2rem;
-      }
-      .t-wind .tile-label { font-size: 0.62rem; }
-      .t-wind .tile-value { font-size: 1.05rem; white-space: nowrap; }
-
-      /* Humidity circle — col 1, row 2 */
-      .t-hum { grid-column: 1; grid-row: 2; }
-
-      /* UV circle — col 2, row 2 */
-      .t-uv  {
-        grid-column: 2; grid-row: 2;
-        border-radius: 50%;
-        aspect-ratio: 1;
-        padding: 0;
-      }
-      .t-uv .tile-value { font-size: 1.8rem; }
-
-      /* Pressure pill — col 1, row 3 */
-      .t-pres { grid-column: 1; grid-row: 3; border-radius: 24px; }
-
-      /* Rain pill — col 2, row 3 */
-      .t-rain { grid-column: 2; grid-row: 3; border-radius: 24px; }
-
-      /* Shrink compass to fit inside horizontal wind tile */
-      .compass-svg { width: 80px; }
+    @media (min-width: 700px) {
+      .page { padding-top: 3.5rem; }
+      .hero-temp { font-size: 7.5rem; }
+      .widgets { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .caption.wipe .cap-bar { animation: none; }
     }
   </style>
 </head>
@@ -464,107 +410,107 @@
 <div id="wx-ghost" aria-hidden="true">🌡️</div>
 <div id="particles" aria-hidden="true"></div>
 
-<div class="page">
-  <div class="p-location" id="location">—</div>
-  <div id="clock"></div>
+<main class="page">
+  <header class="hero">
+    <h1 id="location">Weather</h1>
+    <div id="clock"></div>
+    <div class="hero-temp"><span id="temp">—</span>°</div>
+    <div class="hero-cond" id="cond-plain"></div>
+    <div class="hero-hilo" id="hilo"></div>
+  </header>
 
-  <div class="p-hero">
-    <div class="wx-icon" id="wx-icon">🌡️</div>
-    <div class="p-temp-wrap">
-      <span class="p-temp" id="temp">—</span>
-      <span class="p-unit">°C</span>
+  <section class="caption" id="caption" aria-label="Current conditions">
+    <div class="cap-bar">
+      <p id="condition">Loading…</p>
+      <p id="feels"></p>
     </div>
-  </div>
+  </section>
 
-  <div class="p-condition" id="condition">Loading…</div>
-  <div class="p-feels" id="feels"></div>
+  <section class="panel" id="p-hours" hidden>
+    <div id="fc-now"></div>
+    <hr>
+    <div class="hours" id="fc-hours"></div>
+  </section>
 
-  <div class="p-stats">
+  <section class="panel" id="p-days" hidden>
+    <h2>Six-day forecast</h2>
+    <div id="fc-outlook"></div>
+    <hr>
+    <div id="fc-days"></div>
+  </section>
 
-    <!-- Humidity circle with SVG progress ring -->
-    <div class="tile t-hum">
-      <svg class="ring-svg" viewBox="0 0 100 100">
-        <circle class="ring-track" cx="50" cy="50" r="42"/>
-        <circle class="ring-fill" id="hum-ring" cx="50" cy="50" r="42"/>
-      </svg>
-      <div class="ring-center">
-        <div class="tile-value" id="humidity">—</div>
-        <div class="tile-sub">%</div>
-        <div class="tile-label">Humidity</div>
-      </div>
-    </div>
-
-    <!-- Wind — tall, compass prominent -->
-    <div class="tile t-wind">
-      <div class="tile-label">Wind</div>
-      <div class="tile-value" id="wind-speed">—</div>
-
-      <svg class="compass-svg" id="compass" viewBox="0 0 120 120">
-        <!-- Outer ring -->
-        <circle class="compass-ring" cx="60" cy="60" r="54"/>
-        <!-- 8 tick marks -->
-        <line class="compass-tick" x1="60" y1="8"  x2="60" y2="16"/>
-        <line class="compass-tick" x1="60" y1="104" x2="60" y2="112"/>
-        <line class="compass-tick" x1="8"  y1="60" x2="16" y2="60"/>
-        <line class="compass-tick" x1="104" y1="60" x2="112" y2="60"/>
-        <line class="compass-tick" x1="21" y1="21" x2="27" y2="27" opacity="0.6"/>
-        <line class="compass-tick" x1="93" y1="21" x2="99" y2="27" opacity="0.6"/>
-        <line class="compass-tick" x1="21" y1="99" x2="27" y2="93" opacity="0.6"/>
-        <line class="compass-tick" x1="93" y1="99" x2="99" y2="93" opacity="0.6"/>
-        <!-- Cardinal labels -->
-        <text class="compass-label" x="60" y="7"  text-anchor="middle" dy="0.3em">N</text>
-        <text class="compass-label" x="60" y="116" text-anchor="middle" dy="0.3em">S</text>
-        <text class="compass-label" x="6"  y="60"  text-anchor="middle" dy="0.35em">W</text>
-        <text class="compass-label" x="114" y="60" text-anchor="middle" dy="0.35em">E</text>
-        <!-- Needle -->
+  <section class="widgets">
+    <div class="panel widget w-wind">
+      <h2>Wind</h2>
+      <div class="w-val" id="wind-speed">—</div>
+      <div class="w-note" id="wind-dir"></div>
+      <svg class="compass-svg" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="compass-ring" cx="60" cy="60" r="50"/>
+        <line class="compass-tick" x1="60" y1="10" x2="60" y2="18"/>
+        <line class="compass-tick" x1="60" y1="102" x2="60" y2="110"/>
+        <line class="compass-tick" x1="10" y1="60" x2="18" y2="60"/>
+        <line class="compass-tick" x1="102" y1="60" x2="110" y2="60"/>
+        <text class="compass-label" x="60" y="29" text-anchor="middle" dy="0.35em">N</text>
         <g id="compass-needle" transform="rotate(0,60,60)">
-          <polygon id="compass-north" points="60,14 57,60 60,54 63,60"/>
-          <polygon id="compass-south" points="60,106 57,60 60,66 63,60"/>
+          <polygon id="compass-north" points="60,20 55,60 60,54 65,60"/>
+          <polygon id="compass-south" points="60,100 55,60 60,66 65,60"/>
         </g>
-        <!-- Centre dot -->
-        <circle class="compass-dot" cx="60" cy="60" r="5"/>
+        <circle class="compass-dot" cx="60" cy="60" r="4"/>
       </svg>
-
-      <div class="tile-sub" id="wind-gust"></div>
+      <div class="w-sub" id="wind-gust"></div>
     </div>
 
-    <!-- UV circle -->
-    <div class="tile t-uv">
-      <div class="tile-value" id="uv">—</div>
-      <div class="tile-sub" id="uv-label"></div>
-      <div class="tile-label" style="margin-top:4px">UV Index</div>
+    <div class="panel widget">
+      <h2>Humidity</h2>
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="ring-track" cx="50" cy="50" r="42"/>
+          <circle class="ring-fill" id="hum-ring" cx="50" cy="50" r="42"/>
+        </svg>
+        <div class="w-val" id="humidity">—</div>
+      </div>
+      <div class="w-sub" id="hum-note"></div>
     </div>
 
-    <!-- Pressure pill -->
-    <div class="tile t-pres">
-      <div class="tile-label">Pressure</div>
-      <div class="tile-value" id="pressure">—</div>
-      <div class="tile-sub">hPa</div>
+    <div class="panel widget">
+      <h2>UV index</h2>
+      <div class="w-val" id="uv">—</div>
+      <div class="w-note" id="uv-label"></div>
+      <div class="uv-track"><div class="uv-dot" id="uv-dot"></div></div>
+      <div class="w-sub" id="uv-peak"></div>
     </div>
 
-    <!-- Rain pill -->
-    <div class="tile t-rain">
-      <div class="tile-label">Rain</div>
-      <div class="tile-value" id="rain">—</div>
-      <div class="tile-sub">mm</div>
+    <div class="panel widget">
+      <h2>Rain</h2>
+      <div class="w-val" id="rain">—<small>mm</small></div>
+      <div class="w-note">in the last hour</div>
+      <div class="w-sub" id="rain-today"></div>
     </div>
 
-  </div>
+    <div class="panel widget">
+      <h2 id="sun-label">Sunset</h2>
+      <div class="w-val" id="sun-next">—</div>
+      <div class="w-sub" id="sun-other"></div>
+    </div>
 
-  <div class="p-footer" id="updated">—</div>
-</div>
+    <div class="panel widget">
+      <h2>Pressure</h2>
+      <div class="w-val" id="pressure">—<small>hPa</small></div>
+      <div class="w-sub" id="pres-note"></div>
+    </div>
+  </section>
+
+  <footer class="p-footer" id="updated"></footer>
+</main>
 
 <script>
   /* Clock */
-  const narrow = () => window.innerWidth <= 500;
   (function tick() {
     const n = new Date();
-    document.getElementById('clock').textContent = narrow()
-      ? n.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) +
-        ' · ' + n.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
-      : n.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }) +
-        ' · ' + n.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-    setTimeout(tick, 1000);
+    document.getElementById('clock').textContent =
+      n.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) + ', ' +
+      n.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    setTimeout(tick, 1000 * (60 - n.getSeconds()));
   })();
 
   /* WMO mappings */
@@ -761,65 +707,320 @@
 
   /* Helpers */
   const compass = d => ['N','NE','E','SE','S','SW','W','NW'][Math.round(d/45)%8];
-  const uvLbl   = v => v<3?'Low':v<6?'Moderate':v<8?'High':v<11?'Very High':'Extreme';
+
+  /* Sweary weather. Page-only: /api/weather
+     keeps the clean WMO text for the home_menu card. Variants rotate hourly so the
+     5-minute refresh doesn't reshuffle the joke under you. */
+  const SWEARY = {
+    0:  ['Clear fucking sky. Not a cloud, not a sodding one.',
+         'Glorious sunshine, viewers. Get your tits out.',
+         'Clear skies. Enjoy it, you ungrateful twats.'],
+    1:  ['Mainly clear. Mainly. Don\'t get cocky.',
+         'Mostly clear, with one wanker of a cloud.'],
+    2:  ['Partly cloudy. Make your own bloody mind up.',
+         'Bit of sun, bit of cloud. Bollocks to it.'],
+    3:  ['Overcast. Grey as a Tory\'s ballbag.',
+         'Wall-to-wall cloud. Fucking miserable.',
+         'Overcast, like my career, Tom.'],
+    45: ['Foggy as fuck. Can\'t see my own knob.',
+         'Pea-souper. Mind the cunt in front.'],
+    48: ['Freezing fog. Ice all over the shitting shop.',
+         'Rime fog. Nobody knows what that means, least of all me.'],
+    51: ['Light drizzle. Piss-poor effort, frankly.',
+         'Drizzle. Not raining, not dry, just a twat.'],
+    53: ['Drizzling. That fine wet shite.',
+         'Moderate drizzle. Like being gobbed on by a ghost.'],
+    55: ['Proper drizzle. Wet in the knickers wet.',
+         'Dense drizzle. Bollocks-soakingly persistent.'],
+    61: ['Spitting. Bit of piss in the wind.',
+         'Light rain. Take a coat, you tit.'],
+    63: ['Raining. Of course it fucking is.',
+         'Steady rain, viewers. Welcome to Britain.'],
+    65: ['Absolutely pissing it down.',
+         'Chucking it down. Biblical fucking deluge.',
+         'Heavy rain. Wetter than an otter\'s pocket.'],
+    71: ['Bit of snow. Nothing to wank over.',
+         'Light snow. Southern bastards will panic anyway.'],
+    73: ['Snowing. Trains fucked, obviously.',
+         'Proper snow. Build a snowman with a massive knob.'],
+    75: ['Heavy snow. Colder than a witch\'s tit.',
+         'Snowmageddon. Stay in, you pillocks.'],
+    77: ['Snow grains. Snow\'s shit cousin.'],
+    80: ['Odd shower. Wet one minute, dry the next. Twat.',
+         'Scattered showers. Sod\'s law, you\'ll catch one.'],
+    81: ['Showers. Umbrella up, umbrella down, fuck off.',
+         'Showery. Weather can\'t make its fucking mind up.'],
+    82: ['Violent showers. Fucking torrential, Tom.',
+         'Cloudburst. Absolutely lashing the bastard down.'],
+    85: ['Snow showers. Mind your arse on the path.'],
+    86: ['Heavy snow showers. Brass monkeys are shitting it.'],
+    95: ['Thunder and lightning. Very very fucking frightening.',
+         'Thunderstorm. Unplug the telly, you tit.'],
+    96: ['Thunder and hail. God\'s having a wank on us.',
+         'Storm with hail. Get the car under cover, dickhead.'],
+    99: ['Thunder, heavy hail. Apocalyptic fucking bollocks.'],
+  };
+  const pick = (arr, salt = 0) => arr[(Math.floor(Date.now() / 3600000) + salt) % arr.length];
+  const swearyCond = (code, fallback) => SWEARY[code] ? pick(SWEARY[code], code) : fallback;
+
+  const swearyFeels = t =>
+      t <= -5 ? 'Fucking baltic. Nipples like chapel hat pegs.'
+    : t <= 0  ? 'Brass monkeys. Cold enough to freeze your knackers off.'
+    : t <= 5  ? 'Nithering. Proper bollock-shrinking weather.'
+    : t <= 10 ? 'Parky. Coat on, you soft shite.'
+    : t <= 15 ? 'Bit fresh. Jumper weather, Mum was right.'
+    : t <= 20 ? 'Pleasant. Don\'t get used to it.'
+    : t <= 25 ? 'Warm. Sweaty-bollocks warm.'
+    : t <= 30 ? 'Fucking roasting. Arse like a swamp.'
+    :           'Hotter than Satan\'s ringpiece.';
+
+  const swearyUv = v => v<3 ? 'Bugger all' : v<6 ? 'Slap some on' : v<8 ? 'Burn, you twat'
+                      : v<11 ? 'Lobster-arse' : 'Cooked, mate';
+
+  const swearyGust = g => g >= 50 ? 'blowing a fucking hoolie'
+                        : g >= 35 ? 'blowing a gale'
+                        : g >= 22 ? 'bit wanky' : '';
   const fmt     = (v,dp=1) => v==null ? '—' : Number(v).toFixed(dp);
 
+  /* Forecast: short per-day quips, keyed by the same buckets as wmoCondition */
+  const DAY_QUIPS = {
+    'clear':         ['Sunny. Tits out.', 'Glorious. Shades on, knobhead.', 'Actual sun. Don\'t fuck it up.'],
+    'partly-cloudy': ['Sunny spells, cloudy twat bits.', 'Bit of everything. Meh.', 'Decent-ish. Don\'t hold your breath.'],
+    'overcast':      ['Grey. Fucking grey.', 'Dull as a Lib Dem conference.', 'Cloudy bollocks all day.'],
+    'fog':           ['Foggy bollocks.', 'Can\'t see shit.'],
+    'drizzle':       ['Drizzly shite.', 'Damp. Like a wanker\'s sock.', 'Mizzle. Neither one nor the fucking other.', 'Spitting on and off. Twat of a day.'],
+    'rain':          ['Pissing down.', 'Wet as fuck.', 'Rain. Obviously. Cunt of a day.'],
+    'showers':       ['Showers. Brolly roulette.', 'On-off pissing about.'],
+    'snow':          ['Snow. Trains fucked.', 'Snowing. Kids off school, you\'re fucked.'],
+    'storm':         ['Thunder. Hide the dog.', 'Storms. Absolute cunt of a day.'],
+  };
+  const HEAVY = new Set([65, 82, 86, 75, 99]);
+  /* Quips rotate through each bucket across the week, so three drizzly days get
+     three different lines; the offset from the date keeps it stable per day. */
+  function assignQuips(daily) {
+    const used = {};
+    for (const d of daily) {
+      const b = wmoCondition(d.code);
+      if (HEAVY.has(d.code) && b !== 'storm') {
+        d.quip = b === 'snow' ? 'Buried. Stay in, you pillock.' : 'Biblical. Stay in, you pillock.';
+        continue;
+      }
+      const arr = DAY_QUIPS[b] || ['Fuck knows.'];
+      used[b] = (used[b] ?? Number(daily[0].date.slice(-2))) + 1;
+      d.quip = arr[used[b] % arr.length];
+    }
+  }
+  const DAYS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const DAYSL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dow   = iso => new Date(iso + 'T12:00').getDay();
+  const hh    = iso => iso.slice(11, 13) + ':00';
+  const isWet = c => c >= 51;
+  const esc   = t => String(t).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+
+  /* Commentary, split two ways: the next few hours go on the hourly
+     panel, tomorrow and the week go on the six-day panel. */
+  function outlook(hours, daily, nowCode) {
+    const now = [], week = [];
+
+    const wetNow = isWet(nowCode);
+    if (!wetNow) {
+      const r = hours.find(h => h.pop >= 50 || isWet(h.code));
+      now.push(r
+        ? `Rain from about ${hh(r.time)}, ${r.pop ?? '?'}% chance. Get the washing in, you pillock.`
+        : 'Dry for the next twelve hours. A fucking miracle, frankly.');
+    } else {
+      const d = hours.find(h => h.pop < 30 && !isWet(h.code));
+      now.push(d
+        ? `Should stop pissing down around ${hh(d.time)}. Allegedly.`
+        : 'And it\'s not stopping, viewers. Wet for the next twelve hours. Bollocks.');
+    }
+
+    const night = hours.filter(h => !h.day);
+    if (night.length) {
+      const lo = Math.round(Math.min(...night.map(h => h.temp)));
+      if (lo <= 3) now.push(`Down to ${lo}° tonight. Brass monkeys. Scrape the car, you poor sod.`);
+      else if (lo >= 17) now.push(`Only down to ${lo}° tonight. Sweaty, sleepless bollocks.`);
+    }
+
+    if (daily.length > 1) {
+      const t = daily[1];
+      week.push(`Tomorrow: ${Math.round(t.hi)}°, ${t.quip.charAt(0).toLowerCase() + t.quip.slice(1).replace(/\.$/, '')}` +
+        (t.pop >= 60 ? `. ${t.pop}% chance of rain. Brolly, you tit.` : '.'));
+    }
+
+    const rest = daily.slice(2);
+    if (rest.length >= 2) {
+      const score = d => d.hi - d.pop / 8 - (isWet(d.code) ? 4 : 0);
+      const best  = rest.reduce((a, b) => score(b) > score(a) ? b : a);
+      const worst = rest.reduce((a, b) => score(b) < score(a) ? b : a);
+      if (best.date !== worst.date) {
+        week.push(`Best day's ${DAYSL[dow(best.date)]}, ${Math.round(best.hi)}°` +
+          (best.pop < 30 && !isWet(best.code) ? ' and dry. Pull a sickie.'
+           : best.pop < 30 ? ' and mostly dry. Pull a sickie anyway.'
+           : '. Which isn\'t saying much.') +
+          ` Worst is ${DAYSL[dow(worst.date)]}` +
+          (worst.pop >= 50 ? `, ${worst.pop}% rain. Fucking typical.` : '. Grim, but you\'ll live.'));
+      }
+    }
+    return { now, week };
+  }
+
+  /* Colour for a temperature, used on the week's range bars */
+  const T_STOPS = [[-5,[94,156,255]],[5,[98,201,255]],[12,[111,224,192]],[18,[255,210,31]],[24,[255,159,67]],[30,[255,90,60]]];
+  function tempColor(t) {
+    if (t <= T_STOPS[0][0]) return `rgb(${T_STOPS[0][1]})`;
+    for (let i = 1; i < T_STOPS.length; i++) {
+      const [t1, c1] = T_STOPS[i];
+      if (t <= t1) {
+        const [t0, c0] = T_STOPS[i - 1], k = (t - t0) / (t1 - t0);
+        return `rgb(${c0.map((v, j) => Math.round(v + (c1[j] - v) * k))})`;
+      }
+    }
+    return `rgb(${T_STOPS[T_STOPS.length - 1][1]})`;
+  }
+
+  const paras = lines => lines.map(l => `<p class="panel-summary">${esc(l)}</p>`).join('');
+  let today = null;   /* daily[0], for the hero H/L and the rain/UV/sun widgets */
+
+  function renderForecast(fc, nowTime, nowCode) {
+    const ph = document.getElementById('p-hours'), pd = document.getElementById('p-days');
+    if (!fc || !fc.hourly || !fc.daily) { ph.hidden = pd.hidden = true; today = null; return; }
+    const H = fc.hourly, D = fc.daily;
+
+    const nowHour = (nowTime || '').slice(0, 13);
+    const start = Math.max(0, H.time.findIndex(t => t.slice(0, 13) >= nowHour));
+    const hours = H.time.slice(start, start + 12).map((t, i) => ({
+      time: t, temp: H.temperature_2m[start + i], pop: H.precipitation_probability[start + i],
+      code: H.weather_code[start + i], day: !!H.is_day[start + i],
+    }));
+    const daily = D.time.map((t, i) => ({
+      date: t, code: D.weather_code[i], hi: D.temperature_2m_max[i], lo: D.temperature_2m_min[i],
+      pop: D.precipitation_probability_max[i] ?? 0, rain: D.precipitation_sum?.[i],
+      sunrise: D.sunrise?.[i], sunset: D.sunset?.[i],
+    }));
+    assignQuips(daily);
+    today = daily[0];
+    today.tomorrowSunrise = daily[1]?.sunrise;
+
+    const o = outlook(hours, daily, nowCode);
+    document.getElementById('fc-now').innerHTML = paras(o.now);
+    document.getElementById('fc-outlook').innerHTML = paras(o.week);
+
+    document.getElementById('fc-hours').innerHTML = hours.map((h, i) => `
+      <div class="hour">
+        <div class="h-time">${i === 0 ? 'Now' : h.time.slice(11, 13)}</div>
+        <div class="h-icon">${wmoEmoji(h.code, h.day)}</div>
+        <div class="h-rain">${h.pop >= 20 ? h.pop + '%' : ''}</div>
+        <div class="h-temp">${fmt(h.temp, 0)}°</div>
+      </div>`).join('');
+
+    /* Range bars share one scale: the whole week's coldest low to hottest high */
+    const week = daily.slice(1);
+    const wLo = Math.min(...week.map(d => d.lo)), wHi = Math.max(...week.map(d => d.hi));
+    const span = Math.max(1, wHi - wLo);
+    document.getElementById('fc-days').innerHTML = week.map(d => {
+      const l = (d.lo - wLo) / span * 100, r = (d.hi - wLo) / span * 100;
+      return `
+      <div class="day">
+        <div class="d-name">${DAYS[dow(d.date)]}</div>
+        <div class="d-icon"><b>${wmoEmoji(d.code, true)}</b>${d.pop >= 20 ? `<i>${d.pop}%</i>` : ''}</div>
+        <div class="d-lo">${fmt(d.lo, 0)}°</div>
+        <div class="d-track"><div class="d-fill" style="left:${l.toFixed(1)}%;right:${(100 - r).toFixed(1)}%;background:linear-gradient(90deg,${tempColor(d.lo)},${tempColor(d.hi)})"></div></div>
+        <div class="d-hi">${fmt(d.hi, 0)}°</div>
+        <div class="d-quip">${esc(d.quip)}</div>
+      </div>`;
+    }).join('');
+
+    ph.hidden = pd.hidden = false;
+  }
+
+  const humNote  = h => h >= 85 ? 'Close. Swampy bollocks.' : h >= 70 ? 'Bit clammy.'
+                     : h >= 40 ? 'Comfortable. Enjoy it.' : 'Dry as a camel\'s arse.';
+  const presNote = p => p < 990 ? 'Very low. Batten down the fucking hatches.'
+                     : p < 1005 ? 'Low. Unsettled, like a pissed uncle.'
+                     : p <= 1022 ? 'About normal. Boring.' : 'High. Settled, for once.';
+  const clockHM  = iso => iso ? iso.slice(11, 16) : '—';
+
   /* Fetch + render */
+  let firstRender = true;
   async function refresh() {
     try {
       const j = await fetch('/api/weather').then(r => r.json());
-      if (j.error) { document.getElementById('condition').textContent = 'Error: '+j.error; return; }
+      if (j.error && !j.data) { document.getElementById('condition').textContent = 'Error: ' + j.error; return; }
       const d = j.data;
 
       const code = d.weather_code ?? 0;
       const day  = !!d.is_day;
-      const cond = wmoCondition(code);
-      applyTheme(cond, day);
+      applyTheme(wmoCondition(code), day);
+      document.getElementById('wx-ghost').textContent = wmoEmoji(code, day);
 
-      const emoji = wmoEmoji(code, day);
-      document.getElementById('wx-icon').textContent  = emoji;
-      document.getElementById('wx-ghost').textContent = emoji;
+      renderForecast(j.forecast, d.time, code);
 
-      document.getElementById('location').textContent  = d.location_name || 'Weather';
-      document.getElementById('temp').textContent      = fmt(d.temperature_2m, 0);
-      document.getElementById('condition').textContent = d.description || '';
-      document.getElementById('feels').textContent =
-        d.apparent_temperature != null ? `Feels like ${fmt(d.apparent_temperature,0)}°C` : '';
+      document.getElementById('location').textContent   = d.location_name || 'Weather';
+      document.getElementById('temp').textContent       = fmt(d.temperature_2m, 0);
+      document.getElementById('cond-plain').textContent = d.description || '';
+      document.getElementById('hilo').innerHTML = today
+        ? `<span>H ${fmt(today.hi, 0)}°</span><span>L ${fmt(today.lo, 0)}°</span>` : '';
 
-      /* Humidity ring: circumference ≈ 2π×42 = 263.9 */
-      const hum = d.relative_humidity_2m;
-      document.getElementById('humidity').textContent = fmt(hum, 0);
-      if (hum != null) {
-        const fill = (hum / 100) * 263.9;
-        document.getElementById('hum-ring').style.strokeDasharray = `${fill} 263.9`;
-      }
+      document.getElementById('condition').textContent = swearyCond(code, d.description || '');
+      document.getElementById('feels').textContent = d.apparent_temperature != null
+        ? `Feels like ${fmt(d.apparent_temperature, 0)}°. ${swearyFeels(d.apparent_temperature)}` : '';
+      if (firstRender) { document.getElementById('caption').classList.add('wipe'); firstRender = false; }
 
-      /* Wind + compass */
-      const spd = d.wind_speed_10m, dir = d.wind_direction_10m;
-      document.getElementById('wind-speed').textContent =
-        `${fmt(spd,0)} mph ${dir!=null ? compass(dir) : ''}`;
-      document.getElementById('wind-gust').textContent =
-        d.wind_gusts_10m != null ? `Gusts ${fmt(d.wind_gusts_10m,0)} mph` : '';
+      /* Wind */
+      const spd = d.wind_speed_10m, dir = d.wind_direction_10m, gust = d.wind_gusts_10m;
+      document.getElementById('wind-speed').innerHTML = `${fmt(spd, 0)}<small>mph</small>`;
+      document.getElementById('wind-dir').textContent = dir != null ? `From the ${compass(dir)}` : '';
+      document.getElementById('wind-gust').textContent = gust != null
+        ? `Gusts ${fmt(gust, 0)} mph` + (swearyGust(gust) ? `, ${swearyGust(gust)}` : '') : '';
       if (dir != null)
         document.getElementById('compass-needle').setAttribute('transform', `rotate(${dir},60,60)`);
-      setWindLines((d.wind_gusts_10m ?? d.wind_speed_10m ?? 0) >= 22);
+      setWindLines((gust ?? spd ?? 0) >= 22);
 
-      /* Other stats */
-      document.getElementById('pressure').textContent = fmt(d.surface_pressure, 0);
-      document.getElementById('rain').textContent     = fmt(d.rain, 1);
-      const uv = d.uv_index != null ? Math.round(d.uv_index*10)/10 : null;
+      /* Humidity */
+      const hum = d.relative_humidity_2m;
+      document.getElementById('humidity').textContent = hum != null ? `${fmt(hum, 0)}%` : '—';
+      document.getElementById('hum-note').textContent = hum != null ? humNote(hum) : '';
+      if (hum != null)
+        document.getElementById('hum-ring').style.strokeDasharray = `${(hum / 100) * 263.9} 263.9`;
+
+      /* UV */
+      const uv = d.uv_index != null ? Math.round(d.uv_index * 10) / 10 : null;
       document.getElementById('uv').textContent       = uv ?? '—';
-      document.getElementById('uv-label').textContent = uv != null ? uvLbl(uv) : '';
+      document.getElementById('uv-label').textContent = uv != null ? swearyUv(uv) : '';
+      document.getElementById('uv-dot').style.left    = `${Math.min(100, (uv ?? 0) / 11 * 100)}%`;
 
-      const when = j.fetched_at ? new Date(j.fetched_at*1000).toLocaleTimeString('en-GB') : '—';
-      document.getElementById('updated').textContent = `Updated ${when} · Open-Meteo`;
-    } catch(e) {
-      document.getElementById('condition').textContent = 'Failed to load';
+      /* Rain */
+      document.getElementById('rain').innerHTML = `${fmt(d.rain, 1)}<small>mm</small>`;
+      document.getElementById('rain-today').textContent = today && today.rain != null
+        ? (today.rain < 0.1 ? 'None expected today. Don\'t jinx it.' : `${fmt(today.rain, 1)} mm expected today.`) : '';
+
+      /* Sun: show whichever event comes next */
+      if (today && today.sunset) {
+        const nowIso = d.time || '';
+        const beforeRise = nowIso < today.sunrise, beforeSet = nowIso < today.sunset;
+        const [label, next, other] = beforeRise ? ['Sunrise', today.sunrise, `Sunset ${clockHM(today.sunset)}`]
+          : beforeSet ? ['Sunset', today.sunset, `Sunrise was ${clockHM(today.sunrise)}`]
+          : ['Sunrise', today.tomorrowSunrise, `Sunset was ${clockHM(today.sunset)}`];
+        document.getElementById('sun-label').textContent = label;
+        document.getElementById('sun-next').textContent  = clockHM(next);
+        document.getElementById('sun-other').textContent = other;
+      }
+
+      /* Pressure */
+      document.getElementById('pressure').innerHTML = `${fmt(d.surface_pressure, 0)}<small>hPa</small>`;
+      document.getElementById('pres-note').textContent = d.surface_pressure != null ? presNote(d.surface_pressure) : '';
+
+      const when = j.fetched_at ? new Date(j.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+      document.getElementById('updated').textContent = `Updated ${when} from Open-Meteo`;
+    } catch (e) {
+      document.getElementById('condition').textContent = 'Couldn\'t reach the weather server. Retrying in five minutes.';
     }
   }
 
   refresh();
   setInterval(refresh, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 </script>
 </body>
 </html>
