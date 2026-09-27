@@ -271,6 +271,7 @@
     }
     .warn.amber { background: #ff9f1c; }
     .warn.red   { background: #e53935; color: #fff; }
+    .warn.thunder { background: #6d4aff; color: #fff; }
     .warn b { display: block; font: 700 1.05rem/1.2 'Barlow Condensed', 'Arial Narrow', sans-serif; }
     .warn p { font-size: 0.82rem; line-height: 1.35; margin-top: 0.25rem; }
     .warn .kicker { font-weight: 600; }
@@ -300,14 +301,35 @@
     }
     .hours::-webkit-scrollbar { display: none; }
     .hour {
-      flex: 0 0 3.4rem; scroll-snap-align: start;
-      display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+      flex: 0 0 3.7rem; scroll-snap-align: start;
+      display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+      padding: 0.15rem 0 0.25rem;
       font-variant-numeric: tabular-nums;
     }
     .hour .h-time { font-size: 0.85rem; font-weight: 600; }
     .hour .h-icon { font-size: 1.45rem; line-height: 1.6rem; height: 1.6rem; }
-    .hour .h-rain { font-size: 0.72rem; font-weight: 600; color: var(--rain); height: 0.9rem; }
+    .hour .h-rain { font-size: 0.72rem; font-weight: 600; color: var(--rain); height: 1rem; line-height: 1rem; }
     .hour .h-temp { font-size: 1.1rem; font-weight: 600; }
+    .hour .h-range { font-size: 0.7rem; color: var(--ink-3); margin-top: -0.2rem; white-space: nowrap; }
+    .hour.midnight { border-left: 1px solid var(--hair); }
+    .hour.midnight .h-time { color: var(--ink); }
+    /* Rain chance coloured by how hard it'd come down if it does */
+    .h-rain.light, .d-pop.light { opacity: 0.6; }
+    .h-rain.heavy, .d-pop.heavy { color: #fff; background: #2f7dff; border-radius: 4px; padding: 0 3px; }
+
+    /* Day chips above the hourly strip; tap to jump, highlight follows the scroll */
+    .day-tabs { display: flex; gap: 0.35rem; margin: 0 0 0.85rem; overflow-x: auto; scrollbar-width: none; }
+    .day-tabs::-webkit-scrollbar { display: none; }
+    .day-tab {
+      flex: none; border: 0; cursor: pointer; font: inherit; font-size: 0.78rem; font-weight: 600;
+      padding: 0.3rem 0.7rem; border-radius: 999px;
+      background: rgba(255,255,255,0.08); color: var(--ink-2);
+    }
+    .day-tab.on { background: rgba(255,255,255,0.24); color: var(--ink); }
+    .rain-key { font-size: 0.7rem; color: var(--ink-3); margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--hair); }
+    .rain-key b { font-weight: 600; color: var(--rain); }
+    .rain-key b.light { opacity: 0.6; }
+    .rain-key b.heavy { color: #fff; background: #2f7dff; border-radius: 3px; padding: 0 3px; }
 
     /* Week: one fixed-height data line per day, quip underneath flush with the day name */
     #fc-outlook .panel-summary { font-size: 0.88rem; color: var(--ink-2); }
@@ -328,6 +350,9 @@
     .d-hi { font-size: 1.05rem; font-weight: 600; text-align: right; }
     .d-track { position: relative; height: 5px; border-radius: 3px; background: rgba(0,0,0,0.22); }
     .d-fill  { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+    /* The 10th-90th percentile spread: how far off the forecast could plausibly be */
+    .d-band  { position: absolute; top: -3px; bottom: -3px; border-radius: 5px; background: rgba(255,255,255,0.16); }
+    .d-quip .d-mm { color: var(--rain); white-space: nowrap; }
     .d-quip {
       grid-column: 1 / -1; font-size: 0.8rem; color: var(--ink-3);
       line-height: 1.3; margin-top: 0.1rem;
@@ -444,7 +469,9 @@
   <section class="panel" id="p-hours" hidden>
     <div id="fc-now"></div>
     <hr>
+    <div class="day-tabs" id="fc-tabs" hidden></div>
     <div class="hours" id="fc-hours"></div>
+    <div class="rain-key" id="rain-key" hidden>Rain: <b class="light">20%</b> drizzle · <b>20%</b> rain · <b class="heavy">20%</b> heavy</div>
   </section>
 
   <section class="panel" id="p-days" hidden>
@@ -950,11 +977,29 @@
 
   /* Commentary, split two ways: the next few hours go on the hourly
      panel, tomorrow and the week go on the six-day panel. */
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const rainKind = h => h.p1 == null ? 'rain' : h.p4 >= 30 ? 'a proper downpour' : h.p1 >= 30 ? 'proper rain' : 'drizzle';
   const OUT = {
-    rainSoon: [(t, p) => `Rain from about ${t}, ${p}% chance. Get the washing in, you pillock.`,
-               (t, p) => `Wet shite arriving around ${t} (${p}%). Plan accordingly, dickhead.`,
-               (t, p) => `Around ${t} it turns to piss, ${p}% chance. Brolly by the door.`,
-               (t, p) => `${p}% chance of rain from ${t}. Don't say I didn't fucking warn you.`],
+    /* Rain on the way, worded by how sure the forecast is (k = drizzle / proper rain / downpour) */
+    rainSure: [(t, p, k) => `Nailed on: ${k} from about ${t}, ${p}% sure. Get the washing in, you pillock.`,
+               (t, p, k) => `${cap(k)} from ${t}. ${p}% certain, so don't fucking argue.`,
+               (t, p, k) => `It's happening: ${k} around ${t} (${p}%). Brolly by the door, dickhead.`],
+    rainLikely:[(t, p, k) => `Probably ${k} from about ${t}, ${p}% chance. Take a coat, you tit.`,
+               (t, p, k) => `${cap(k)} likely around ${t} (${p}%). Plan accordingly, dickhead.`,
+               (t, p, k) => `Odds-on ${k} from ${t}, ${p}%. Don't say I didn't fucking warn you.`],
+    rainToss:  [(t, p, k) => `Maybe ${k} around ${t}. ${p}%, so a coin toss. Fuck knows, frankly.`,
+               (t, p, k) => `Could be ${k} about ${t}, could be sod all. ${p}%. Your call.`,
+               (t, p, k) => `Outside chance of ${k} around ${t} (${p}%). The forecast's shrugging.`],
+    /* How far apart the 10th and 90th percentile highs are across the week */
+    guess:     [(d, a, b) => `${d}'s a guess: anywhere from ${a}° to ${b}°. Fuck knows, frankly.`,
+               (d, a, b) => `${d} could be ${a}° or ${b}°. The Met Office is shrugging.`,
+               (d, a, b) => `Don't plan shit around ${d}: ${a}–${b}°, they're winging it.`],
+    sure:      ['Met Office is unusually sure of itself this week. Suspicious as fuck.',
+               'Forecast\'s tight all week, give or take a degree. Believe it, for once.',
+               'High confidence all week. Which means it\'ll go tits up by the weekend.'],
+    fair:      ['Fairly confident all week, give or take a couple of degrees.',
+               'Give or take two degrees either way. Close enough.',
+               'Reasonable confidence. Don\'t bet the house, bet a fiver.'],
     dry:      ['Dry for the next twelve hours. A fucking miracle, frankly.',
                'No rain for twelve hours. Hang the washing out and pray.',
                'Dry as a bone till tonight. Nobody tell the sky.',
@@ -987,8 +1032,13 @@
 
     const wetNow = isWet(nowCode);
     if (!wetNow) {
-      const r = hours.find(h => h.pop >= 50 || isWet(h.code));
-      now.push(r ? pick(OUT.rainSoon, 11)(hh(r.time), r.pop ?? '?') : pick(OUT.dry, 11));
+      /* With the probabilistic feed, a wet weather code only counts if the rain
+         chance backs it up; otherwise a 0% "coin toss" slips through */
+      const r = hours.find(h => h.pop >= 50 || (isWet(h.code) && (h.p1 == null || h.pop >= 30)));
+      if (r) {
+        const pool = r.pop >= 80 ? OUT.rainSure : r.pop >= 50 ? OUT.rainLikely : OUT.rainToss;
+        now.push(pick(pool, 11)(hh(r.time), r.pop ?? '?', rainKind(r)));
+      } else now.push(pick(OUT.dry, 11));
     } else {
       const d = hours.find(h => h.pop < 30 && !isWet(h.code));
       now.push(d ? pick(OUT.stops, 11)(hh(d.time)) : pick(OUT.wetAll, 11));
@@ -1019,6 +1069,15 @@
           (worst.pop >= 50 ? pick(OUT.worstWet, 23)(worst.pop) : pick(OUT.worstMeh, 23)));
       }
     }
+    /* Confidence: the day whose high is least certain, from the percentile spread */
+    const conf = daily.slice(1).filter(d => d.b && d.b.hi90 != null);
+    if (conf.length >= 3) {
+      const spread = d => d.b.hi90 - d.b.hi10;
+      const wide = conf.reduce((a, b) => spread(b) > spread(a) ? b : a);
+      if (spread(wide) >= 5)
+        week.push(pick(OUT.guess, 29)(DAYSL[dow(wide.date)], Math.round(wide.b.hi10), Math.round(wide.b.hi90)));
+      else week.push(pick(spread(wide) < 3 ? OUT.sure : OUT.fair, 29));
+    }
     return { now, week };
   }
 
@@ -1039,59 +1098,120 @@
   const paras = lines => lines.map(l => `<p class="panel-summary">${esc(l)}</p>`).join('');
   let today = null;   /* daily[0], for the hero H/L and the rain/UV/sun widgets */
 
-  function renderForecast(fc, nowTime, nowCode) {
+  /* How hard it'd rain if it does: drives the colour of the rain chance */
+  const hourWet = h => h.p1 == null ? '' : h.p4 >= 30 ? 'heavy' : h.p1 >= 30 ? '' : 'light';
+  const dayWet  = b => !b || b.rain1 == null ? '' : b.rain8 >= 30 ? 'heavy'
+                     : (b.rain1 >= 50 || b.mm75 >= 2) ? '' : 'light';
+  const mmRange = b => {
+    if (!b || b.rain1 == null || b.rain1 < 30 || b.mm75 == null) return '';
+    const lo = Math.round(b.mm25), hi = Math.max(1, Math.round(b.mm75));
+    return lo >= 1 && lo < hi ? `${lo}–${hi} mm` : `up to ${hi} mm`;
+  };
+  const cols = obj => obj.time.map((_, i) => Object.fromEntries(Object.keys(obj).map(k => [k, obj[k][i]])));
+
+  function renderForecast(fc, nowTime, nowCode, bpf) {
     const ph = document.getElementById('p-hours'), pd = document.getElementById('p-days');
     if (!fc || !fc.hourly || !fc.daily) { ph.hidden = pd.hidden = true; today = null; return; }
     const H = fc.hourly, D = fc.daily;
-
     const nowHour = (nowTime || '').slice(0, 13);
-    const start = Math.max(0, H.time.findIndex(t => t.slice(0, 13) >= nowHour));
-    const hours = H.time.slice(start, start + 12).map((t, i) => ({
-      time: t, temp: H.temperature_2m[start + i], pop: H.precipitation_probability[start + i],
-      code: H.weather_code[start + i], day: !!H.is_day[start + i],
-    }));
+
     const daily = D.time.map((t, i) => ({
       date: t, code: D.weather_code[i], hi: D.temperature_2m_max[i], lo: D.temperature_2m_min[i],
       pop: D.precipitation_probability_max[i] ?? 0, rain: D.precipitation_sum?.[i],
       sunrise: D.sunrise?.[i], sunset: D.sunset?.[i],
     }));
+    const sun = Object.fromEntries(daily.map(d => [d.date, d]));
+    const isDayAt = t => { const s = sun[t.slice(0, 10)]; return s && s.sunrise ? t >= s.sunrise && t < s.sunset : true; };
+
+    /* Hours: the blended probabilistic feed runs hourly for ~5 days with ranges and
+       rain intensity; without it, 12 hours from the main forecast */
+    let hours;
+    if (bpf) {
+      hours = cols(bpf.hourly).filter(h => h.time.slice(0, 13) >= nowHour && h.weather_code != null)
+        .map(h => ({ time: h.time, temp: h.t50, lo: h.t10, hi: h.t90, pop: h.pop, p1: h.p1, p4: h.p4,
+                     code: h.weather_code, day: isDayAt(h.time), zap: h.lightning }));
+    } else {
+      const start = Math.max(0, H.time.findIndex(t => t.slice(0, 13) >= nowHour));
+      hours = H.time.slice(start, start + 12).map((t, i) => ({
+        time: t, temp: H.temperature_2m[start + i], pop: H.precipitation_probability[start + i],
+        code: H.weather_code[start + i], day: !!H.is_day[start + i],
+      }));
+    }
+
+    const bDay = bpf ? Object.fromEntries(cols(bpf.daily).map(b => [b.time, b])) : {};
+    for (const d of daily) d.b = bDay[d.date];
     assignQuips(daily);
     today = daily[0];
     today.tomorrowSunrise = daily[1]?.sunrise;
 
-    const o = outlook(hours, daily, nowCode);
+    const o = outlook(hours.slice(0, 12), daily, nowCode);
     document.getElementById('fc-now').innerHTML = paras(o.now);
     document.getElementById('fc-outlook').innerHTML = paras(o.week);
 
-    document.getElementById('fc-hours').innerHTML = hours.map((h, i) => `
-      <div class="hour">
-        <div class="h-time">${i === 0 ? 'Now' : h.time.slice(11, 13)}</div>
+    const strip = document.getElementById('fc-hours');
+    const keep = strip.scrollLeft;   /* don't yank the strip back while someone's swiping */
+    strip.innerHTML = hours.map((h, i) => {
+      const midnight = i > 0 && h.time.slice(11, 13) === '00';
+      const label = i === 0 ? 'Now' : midnight ? DAYS[dow(h.time.slice(0, 10))] : h.time.slice(11, 13);
+      return `
+      <div class="hour${midnight ? ' midnight' : ''}" data-date="${h.time.slice(0, 10)}">
+        <div class="h-time">${label}</div>
         <div class="h-icon">${wmoEmoji(h.code, h.day)}</div>
-        <div class="h-rain">${h.pop >= 20 ? h.pop + '%' : ''}</div>
+        <div class="h-rain ${hourWet(h)}">${h.pop >= 20 ? h.pop + '%' : ''}</div>
         <div class="h-temp">${fmt(h.temp, 0)}°</div>
-      </div>`).join('');
+        ${bpf ? `<div class="h-range">${fmt(h.lo, 0)}–${fmt(h.hi, 0)}</div>` : ''}
+      </div>`;
+    }).join('');
+    strip.scrollLeft = keep;
+    renderDayTabs(bpf ? hours : []);
+    document.getElementById('rain-key').hidden = !bpf;
 
-    /* Range bars share one scale: the whole week's coldest low to hottest high */
+    /* Range bars share one scale: the whole week's coldest to hottest, including
+       the percentile spread so the shaded band always fits */
     const week = daily.slice(1);
     const N = ['','One','Two','Three','Four','Five','Six','Seven','Eight'];
     document.getElementById('fc-days-h').textContent = `${N[week.length] || week.length}-day forecast`;
-    const wLo = Math.min(...week.map(d => d.lo)), wHi = Math.max(...week.map(d => d.hi));
-    const span = Math.max(1, wHi - wLo);
+    const bandLo = d => d.b ? Math.min(d.lo, d.b.lo10) : d.lo, bandHi = d => d.b ? Math.max(d.hi, d.b.hi90) : d.hi;
+    const wLo = Math.min(...week.map(bandLo)), wHi = Math.max(...week.map(bandHi));
+    const span = Math.max(1, wHi - wLo), x = t => (t - wLo) / span * 100;
     document.getElementById('fc-days').innerHTML = week.map(d => {
-      const l = (d.lo - wLo) / span * 100, r = (d.hi - wLo) / span * 100;
+      const pop = d.b?.rain1 ?? d.pop, mm = mmRange(d.b);
+      const band = d.b ? `<div class="d-band" style="left:${x(bandLo(d)).toFixed(1)}%;right:${(100 - x(bandHi(d))).toFixed(1)}%"></div>` : '';
       return `
       <div class="day">
         <div class="d-name">${DAYS[dow(d.date)]}</div>
         <div class="d-icon">${wmoEmoji(d.code, true)}</div>
-        <div class="d-pop">${d.pop >= 20 ? `${d.pop}%` : ''}</div>
+        <div class="d-pop ${dayWet(d.b)}">${pop >= 20 ? `${pop}%` : ''}</div>
         <div class="d-lo">${fmt(d.lo, 0)}°</div>
-        <div class="d-track"><div class="d-fill" style="left:${l.toFixed(1)}%;right:${(100 - r).toFixed(1)}%;background:linear-gradient(90deg,${tempColor(d.lo)},${tempColor(d.hi)})"></div></div>
+        <div class="d-track">${band}<div class="d-fill" style="left:${x(d.lo).toFixed(1)}%;right:${(100 - x(d.hi)).toFixed(1)}%;background:linear-gradient(90deg,${tempColor(d.lo)},${tempColor(d.hi)})"></div></div>
         <div class="d-hi">${fmt(d.hi, 0)}°</div>
-        <div class="d-quip">${esc(d.quip)}</div>
+        <div class="d-quip">${esc(d.quip)}${mm ? ` <span class="d-mm">· ${mm}</span>` : ''}</div>
       </div>`;
     }).join('');
 
     ph.hidden = pd.hidden = false;
+  }
+
+  function renderDayTabs(hours) {
+    const tabs = document.getElementById('fc-tabs'), strip = document.getElementById('fc-hours');
+    const dates = [...new Set(hours.map(h => h.time.slice(0, 10)))];
+    if (dates.length < 2) { tabs.hidden = true; tabs.innerHTML = ''; return; }
+    tabs.innerHTML = dates.map((d, i) =>
+      `<button class="day-tab" data-date="${d}">${i === 0 ? 'Today' : DAYS[dow(d)]}</button>`).join('');
+    tabs.hidden = false;
+    tabs.onclick = e => {
+      const b = e.target.closest('.day-tab'); if (!b) return;
+      const first = strip.querySelector(`.hour[data-date="${b.dataset.date}"]`);
+      if (first) strip.scrollTo({ left: first.offsetLeft - strip.offsetLeft - 8, behavior: 'smooth' });
+    };
+    const mark = () => {
+      const edge = strip.scrollLeft + strip.clientWidth / 3;
+      let cur = dates[0];
+      for (const el of strip.children) { if (el.offsetLeft - strip.offsetLeft > edge) break; cur = el.dataset.date; }
+      for (const b of tabs.children) b.classList.toggle('on', b.dataset.date === cur);
+    };
+    strip.onscroll = mark;
+    mark();
   }
 
   const HUM = [
@@ -1118,21 +1238,40 @@
     yellow: ['Heads up, you lot.', 'Bit of bother on the way.', 'Mild peril, you soft sods.'],
     amber:  ['Proper shit incoming.', 'This one\'s not fucking about.', 'Serious bollocks. Pay attention.'],
     red:    ['Fucking stay in.', 'Danger to life. Not a fucking joke.', 'Stay home. Seriously. Fuck the plans.'],
+    thunder:['Thunder about, you lot.', 'Unplug the fucking telly.', 'Dog under the bed time.'],
   };
-  function renderWarnings(list) {
+  /* Our own alert from the lightning probabilities: 15%+ chance of strikes within
+     15 km in the next 48 hours. Sits above the official warnings. */
+  const THUNDER_PCT = 15;
+  function thunderAlert(bpf, nowTime) {
+    if (!bpf) return null;
+    const from = (nowTime || '').slice(0, 13);
+    const hrs = cols(bpf.hourly).filter(h => h.time.slice(0, 13) >= from).slice(0, 48);
+    const peak = hrs.reduce((a, h) => (h.lightning ?? 0) > (a?.lightning ?? -1) ? h : a, null);
+    if (!peak || peak.lightning < THUNDER_PCT) return null;
+    const when = peak.time.slice(0, 10) === hrs[0].time.slice(0, 10) ? 'today' : DAYSL[dow(peak.time.slice(0, 10))];
+    return { level: 'thunder', title: `⚡ ${peak.lightning}% chance of lightning nearby`,
+             description: `Peaks around ${hh(peak.time)} ${when}, within 15 km.` };
+  }
+
+  function renderWarnings(list, extra) {
     const el = document.getElementById('warnings');
-    if (!list || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
-    el.innerHTML = list.map(w => `
-      <a class="warn ${esc(w.level)}" href="${esc(w.link)}" target="_blank" rel="noopener">
+    const all = [...(extra ? [extra] : []), ...(list || [])];
+    if (!all.length) { el.hidden = true; el.innerHTML = ''; return; }
+    el.innerHTML = all.map(w => {
+      const body = `
         <b>${esc(w.title)}</b>
-        <p><span class="kicker">${esc(WARN_KICK[w.level] ? pick(WARN_KICK[w.level], 37) : '')}</span> ${esc(w.description)}</p>
-      </a>`).join('');
+        <p><span class="kicker">${esc(WARN_KICK[w.level] ? pick(WARN_KICK[w.level], 37) : '')}</span> ${esc(w.description)}</p>`;
+      return w.link ? `<a class="warn ${esc(w.level)}" href="${esc(w.link)}" target="_blank" rel="noopener">${body}</a>`
+                    : `<div class="warn ${esc(w.level)}">${body}</div>`;
+    }).join('');
     el.hidden = false;
   }
 
   /* Use the Met Office forecast when we have a recent one; fall back to Open-Meteo */
   const MO_STALE_S = 3 * 3600;
   const moFresh = mo => mo && mo.current && mo.fetched_at && (Date.now() / 1000 - mo.fetched_at) < MO_STALE_S;
+  const bpfFresh = b => b && b.hourly && b.fetched_at && (Date.now() / 1000 - b.fetched_at) < MO_STALE_S;
   const noNulls = o => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v != null));
 
   /* Fetch + render */
@@ -1145,14 +1284,15 @@
       /* Met Office values override Open-Meteo field by field; anything it lacks
          (e.g. is_day) comes from Open-Meteo */
       const d = { ...j.data, ...noNulls(mo?.current) };
-      renderWarnings(j.warnings);
+      const bpf = bpfFresh(j.bpf) ? j.bpf : null;
+      renderWarnings(j.warnings, thunderAlert(bpf, d.time));
 
       const code = d.weather_code ?? 0;
       const day  = !!d.is_day;
       applyTheme(wmoCondition(code), day);
       document.getElementById('wx-ghost').textContent = wmoEmoji(code, day);
 
-      renderForecast(mo || j.forecast, d.time, code);
+      renderForecast(mo || j.forecast, d.time, code, bpf);
 
       document.getElementById('location').textContent   = d.location_name || 'Weather';
       document.getElementById('temp').textContent       = fmt(d.temperature_2m, 0);
@@ -1211,7 +1351,7 @@
 
       const when = j.fetched_at ? new Date(j.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
       document.getElementById('updated').textContent = mo
-        ? `Met Office forecast, updated ${new Date(mo.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Sunrise/sunset from Open-Meteo.`
+        ? `Met Office forecast, updated ${new Date(mo.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Sunrise/sunset from Open-Meteo.` + (bpf ? ' Ranges and rain odds from the Met Office blended probabilistic forecast.' : '')
         : `Updated ${when} from Open-Meteo`;
     } catch (e) {
       document.getElementById('condition').textContent = 'Weather server\'s fucked off somewhere. Retrying in five minutes.';

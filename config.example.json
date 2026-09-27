@@ -4,5 +4,6 @@
   "location_name": "Worcester Park",
   "server_port": 8186,
   "poll_interval": 600,
-  "warnings_region": "se"
+  "warnings_region": "se",
+  "bpf_site": "00351409"
 }
