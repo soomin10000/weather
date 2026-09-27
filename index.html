@@ -263,6 +263,18 @@
     .caption.wipe .cap-bar { animation: wipe 0.55s cubic-bezier(.2,.7,.2,1) both; }
     @keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 
+    /* Met Office warnings: official text, coloured by level */
+    .warnings { display: grid; gap: 0.4rem; margin-bottom: 0.35rem; }
+    .warn {
+      display: block; text-decoration: none; color: #1a1300;
+      background: #ffd21f; border-radius: 14px; padding: 0.65rem 0.9rem;
+    }
+    .warn.amber { background: #ff9f1c; }
+    .warn.red   { background: #e53935; color: #fff; }
+    .warn b { display: block; font: 700 1.05rem/1.2 'Barlow Condensed', 'Arial Narrow', sans-serif; }
+    .warn p { font-size: 0.82rem; line-height: 1.35; margin-top: 0.25rem; }
+    .warn .kicker { font-weight: 600; }
+
     /* Glass panels */
     .panel {
       background: var(--glass);
@@ -419,6 +431,8 @@
     <div class="hero-hilo" id="hilo"></div>
   </header>
 
+  <section class="warnings" id="warnings" aria-label="Met Office weather warnings" hidden></section>
+
   <section class="caption" id="caption" aria-label="Current conditions">
     <div class="cap-bar">
       <p id="condition">Loading…</p>
@@ -433,7 +447,7 @@
   </section>
 
   <section class="panel" id="p-days" hidden>
-    <h2>Six-day forecast</h2>
+    <h2 id="fc-days-h">Six-day forecast</h2>
     <div id="fc-outlook"></div>
     <hr>
     <div id="fc-days"></div>
@@ -916,6 +930,8 @@
 
     /* Range bars share one scale: the whole week's coldest low to hottest high */
     const week = daily.slice(1);
+    const N = ['','One','Two','Three','Four','Five','Six','Seven','Eight'];
+    document.getElementById('fc-days-h').textContent = `${N[week.length] || week.length}-day forecast`;
     const wLo = Math.min(...week.map(d => d.lo)), wHi = Math.max(...week.map(d => d.hi));
     const span = Math.max(1, wHi - wLo);
     document.getElementById('fc-days').innerHTML = week.map(d => {
@@ -941,20 +957,43 @@
                      : p <= 1022 ? 'About normal. Boring.' : 'High. Settled, for once.';
   const clockHM  = iso => iso ? iso.slice(11, 16) : '—';
 
+  /* Met Office warnings. The warning text itself is safety info, so it stays
+     verbatim; only the one-line kicker swears. */
+  const WARN_KICK = { yellow: 'Heads up, you lot.', amber: 'Proper shit incoming.', red: 'Fucking stay in.' };
+  function renderWarnings(list) {
+    const el = document.getElementById('warnings');
+    if (!list || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
+    el.innerHTML = list.map(w => `
+      <a class="warn ${esc(w.level)}" href="${esc(w.link)}" target="_blank" rel="noopener">
+        <b>${esc(w.title)}</b>
+        <p><span class="kicker">${esc(WARN_KICK[w.level] || '')}</span> ${esc(w.description)}</p>
+      </a>`).join('');
+    el.hidden = false;
+  }
+
+  /* Use the Met Office forecast when we have a recent one; fall back to Open-Meteo */
+  const MO_STALE_S = 3 * 3600;
+  const moFresh = mo => mo && mo.current && mo.fetched_at && (Date.now() / 1000 - mo.fetched_at) < MO_STALE_S;
+  const noNulls = o => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v != null));
+
   /* Fetch + render */
   let firstRender = true;
   async function refresh() {
     try {
       const j = await fetch('/api/weather').then(r => r.json());
       if (j.error && !j.data) { document.getElementById('condition').textContent = 'Error: ' + j.error; return; }
-      const d = j.data;
+      const mo  = moFresh(j.metoffice) ? j.metoffice : null;
+      /* Met Office values override Open-Meteo field by field; anything it lacks
+         (e.g. is_day) comes from Open-Meteo */
+      const d = { ...j.data, ...noNulls(mo?.current) };
+      renderWarnings(j.warnings);
 
       const code = d.weather_code ?? 0;
       const day  = !!d.is_day;
       applyTheme(wmoCondition(code), day);
       document.getElementById('wx-ghost').textContent = wmoEmoji(code, day);
 
-      renderForecast(j.forecast, d.time, code);
+      renderForecast(mo || j.forecast, d.time, code);
 
       document.getElementById('location').textContent   = d.location_name || 'Weather';
       document.getElementById('temp').textContent       = fmt(d.temperature_2m, 0);
@@ -1012,7 +1051,9 @@
       document.getElementById('pres-note').textContent = d.surface_pressure != null ? presNote(d.surface_pressure) : '';
 
       const when = j.fetched_at ? new Date(j.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
-      document.getElementById('updated').textContent = `Updated ${when} from Open-Meteo`;
+      document.getElementById('updated').textContent = mo
+        ? `Met Office forecast, updated ${new Date(mo.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Sunrise/sunset from Open-Meteo.`
+        : `Updated ${when} from Open-Meteo`;
     } catch (e) {
       document.getElementById('condition').textContent = 'Couldn\'t reach the weather server. Retrying in five minutes.';
     }

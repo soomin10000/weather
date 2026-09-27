@@ -3,5 +3,6 @@
   "longitude": -0.238,
   "location_name": "Worcester Park",
   "server_port": 8186,
-  "poll_interval": 600
+  "poll_interval": 600,
+  "warnings_region": "se"
 }
