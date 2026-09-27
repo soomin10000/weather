@@ -724,89 +724,202 @@
 
   /* Sweary weather. Page-only: /api/weather
      keeps the clean WMO text for the home_menu card. Variants rotate hourly so the
-     5-minute refresh doesn't reshuffle the joke under you. */
+     5-minute refresh doesn't reshuffle the joke under you; each caller passes its
+     own salt so the lines on screen don't all turn over in lockstep. */
   const SWEARY = {
     0:  ['Clear fucking sky. Not a cloud, not a sodding one.',
          'Glorious sunshine, viewers. Get your tits out.',
-         'Clear skies. Enjoy it, you ungrateful twats.'],
+         'Clear skies. Enjoy it, you ungrateful twats.',
+         'Blue sky. Suspicious as fuck. What\'s it after?',
+         'Not a cloud. Somewhere a weatherman is weeping into his bollocks.',
+         'Sunshine. Britain will now complain it\'s too fucking hot.',
+         'Clear as a bell. A big, bright, bastard bell.'],
     1:  ['Mainly clear. Mainly. Don\'t get cocky.',
-         'Mostly clear, with one wanker of a cloud.'],
+         'Mostly clear, with one wanker of a cloud.',
+         'Nearly clear. One cloud, loitering like a twat outside Greggs.',
+         'Mostly sunny. Don\'t fucking jinx it.',
+         'Clear-ish. The sky\'s got a bit of fluff on its knob.'],
     2:  ['Partly cloudy. Make your own bloody mind up.',
-         'Bit of sun, bit of cloud. Bollocks to it.'],
+         'Bit of sun, bit of cloud. Bollocks to it.',
+         'Sunny spells. Emphasis on spells. Witchcraft, the lot of it.',
+         'Half and half. Like a shit pint.',
+         'Cloud and sun taking turns to piss you about.',
+         'Partly cloudy. Sunglasses on, sunglasses off, fuck\'s sake.'],
     3:  ['Overcast. Grey as a Tory\'s ballbag.',
          'Wall-to-wall cloud. Fucking miserable.',
-         'Overcast, like my career, Tom.'],
+         'Overcast, like my career, Tom.',
+         'Grey. Fifty shades of shite.',
+         'Cloud lid on. Britain in Tupperware.',
+         'Overcast. The sky\'s a wet dishcloth and it\'s smirking.',
+         'Dull as dishwater, and twice as fucking grey.'],
     45: ['Foggy as fuck. Can\'t see my own knob.',
-         'Pea-souper. Mind the cunt in front.'],
+         'Pea-souper. Mind the cunt in front.',
+         'Fog. Silent Hill, but in fucking Surrey.',
+         'Murky as a bastard. Fog lights on, dickhead.',
+         'Fog so thick you could spread it on toast. Shit toast.'],
     48: ['Freezing fog. Ice all over the shitting shop.',
-         'Rime fog. Nobody knows what that means, least of all me.'],
+         'Rime fog. Nobody knows what that means, least of all me.',
+         'Freezing fog. Blind AND on your arse. Double bollocks.',
+         'Icy fog. Every surface a fucking death trap.'],
     51: ['Light drizzle. Piss-poor effort, frankly.',
-         'Drizzle. Not raining, not dry, just a twat.'],
+         'Drizzle. Not raining, not dry, just a twat.',
+         'Drizzle. The sky\'s too fucking lazy to rain properly.',
+         'Faint drizzle. Like being sneezed on by God.',
+         'Barely drizzling. Enough to fuck your hair up, though.'],
     53: ['Drizzling. That fine wet shite.',
-         'Moderate drizzle. Like being gobbed on by a ghost.'],
+         'Moderate drizzle. Like being gobbed on by a ghost.',
+         'Drizzle. Soaks you through while pretending it isn\'t. Sneaky bastard.',
+         'Mizzle. Misty drizzle. Twice the shite, same price.',
+         'Drizzly. Umbrella pointless, hood pointless, life pointless.'],
     55: ['Proper drizzle. Wet in the knickers wet.',
-         'Dense drizzle. Bollocks-soakingly persistent.'],
+         'Dense drizzle. Bollocks-soakingly persistent.',
+         'Heavy drizzle. Rain\'s passive-aggressive little bastard brother.',
+         'Thick drizzle. You\'re damp to the arse crack already.'],
     61: ['Spitting. Bit of piss in the wind.',
-         'Light rain. Take a coat, you tit.'],
+         'Light rain. Take a coat, you tit.',
+         'Light rain. Just enough to piss off the barbecue.',
+         'Spotting with rain. Sky\'s got a leaky bladder.',
+         'Drops. Wet pavements, wet socks, wet fucking everything.'],
     63: ['Raining. Of course it fucking is.',
-         'Steady rain, viewers. Welcome to Britain.'],
+         'Steady rain, viewers. Welcome to Britain.',
+         'Rain. Standard issue British shite.',
+         'Raining steadily. Your trainers are fucked.',
+         'Wet. Properly wet. Get the ark out of the garage.',
+         'Rain. Bang on schedule, like nothing else in this sodding country.'],
     65: ['Absolutely pissing it down.',
          'Chucking it down. Biblical fucking deluge.',
-         'Heavy rain. Wetter than an otter\'s pocket.'],
+         'Heavy rain. Wetter than an otter\'s pocket.',
+         'Lashing it down. Noah\'s having a fucking laugh.',
+         'Monsoon bollocks. Drains are wheezing.',
+         'Tipping it down. Rain bouncing off the pavement back up your arse.'],
     71: ['Bit of snow. Nothing to wank over.',
-         'Light snow. Southern bastards will panic anyway.'],
+         'Light snow. Southern bastards will panic anyway.',
+         'Flurries. Supermarket bread aisle already fucked.',
+         'Light snow. Pretty for ten minutes, then it\'s grey slush and misery.'],
     73: ['Snowing. Trains fucked, obviously.',
-         'Proper snow. Build a snowman with a massive knob.'],
+         'Proper snow. Build a snowman with a massive knob.',
+         'Snow. Every bastard on Facebook posting the same photo.',
+         'Settling snow. Gritters are nowhere, as fucking usual.'],
     75: ['Heavy snow. Colder than a witch\'s tit.',
-         'Snowmageddon. Stay in, you pillocks.'],
-    77: ['Snow grains. Snow\'s shit cousin.'],
+         'Snowmageddon. Stay in, you pillocks.',
+         'Buried. Get the shovel and your sweariest words.',
+         'Heavy snow. Country shut. Nobody knows how to drive. Fucking marvellous.'],
+    77: ['Snow grains. Snow\'s shit cousin.',
+         'Snow grains. Like dandruff from a massive sky twat.'],
     80: ['Odd shower. Wet one minute, dry the next. Twat.',
-         'Scattered showers. Sod\'s law, you\'ll catch one.'],
+         'Scattered showers. Sod\'s law, you\'ll catch one.',
+         'Showers about. The sky\'s taking the fucking piss.',
+         'Passing shower. Dash for it, you knob.',
+         'Light showers. Hang the washing out and watch it get pissed on.'],
     81: ['Showers. Umbrella up, umbrella down, fuck off.',
-         'Showery. Weather can\'t make its fucking mind up.'],
+         'Showery. Weather can\'t make its fucking mind up.',
+         'Showers. Sun, rain, sun, rain, you absolute bellend of a sky.',
+         'Heavy-ish showers. Timing your dash to the car is a mug\'s game.',
+         'Showers rolling in. One of them\'s got your name on it, sunshine.'],
     82: ['Violent showers. Fucking torrential, Tom.',
-         'Cloudburst. Absolutely lashing the bastard down.'],
-    85: ['Snow showers. Mind your arse on the path.'],
-    86: ['Heavy snow showers. Brass monkeys are shitting it.'],
+         'Cloudburst. Absolutely lashing the bastard down.',
+         'Violent showers. Sky\'s emptying its bollocks on you.',
+         'Torrential. Gutters overflowing, you\'re fucked, the cat\'s fucked.'],
+    85: ['Snow showers. Mind your arse on the path.',
+         'Snow showers. Sleety, spiteful little bastards.',
+         'Snow on and off. Mostly off, then on your fucking head.'],
+    86: ['Heavy snow showers. Brass monkeys are shitting it.',
+         'Heavy snow showers. Whiteout, then sun, then whiteout. Twat of a sky.',
+         'Blizzardy bollocks in bursts.'],
     95: ['Thunder and lightning. Very very fucking frightening.',
-         'Thunderstorm. Unplug the telly, you tit.'],
+         'Thunderstorm. Unplug the telly, you tit.',
+         'Storm. The dog\'s under the bed and frankly so am I.',
+         'Thunder. Sky\'s having a proper fucking tantrum.',
+         'Thunderstorms. Don\'t stand under a tree, you absolute cockwomble.'],
     96: ['Thunder and hail. God\'s having a wank on us.',
-         'Storm with hail. Get the car under cover, dickhead.'],
-    99: ['Thunder, heavy hail. Apocalyptic fucking bollocks.'],
+         'Storm with hail. Get the car under cover, dickhead.',
+         'Hail and thunder. Frozen fucking gravel from the heavens.',
+         'Thunder, hail. Somebody upstairs is really fucking cross.'],
+    99: ['Thunder, heavy hail. Apocalyptic fucking bollocks.',
+         'Hailstones the size of your nan\'s pickled onions. Stay the fuck in.',
+         'Heavy hail and thunder. Car insurance is about to shit itself.'],
   };
+  /* Hour of the epoch plus a salt. Pools are all under 24 lines, so the same
+     clock hour on different days lands on different lines too. */
   const pick = (arr, salt = 0) => arr[(Math.floor(Date.now() / 3600000) + salt) % arr.length];
   const swearyCond = (code, fallback) => SWEARY[code] ? pick(SWEARY[code], code) : fallback;
 
-  const swearyFeels = t =>
-      t <= -5 ? 'Fucking baltic. Nipples like chapel hat pegs.'
-    : t <= 0  ? 'Brass monkeys. Cold enough to freeze your knackers off.'
-    : t <= 5  ? 'Nithering. Proper bollock-shrinking weather.'
-    : t <= 10 ? 'Parky. Coat on, you soft shite.'
-    : t <= 15 ? 'Bit fresh. Jumper weather, Mum was right.'
-    : t <= 20 ? 'Pleasant. Don\'t get used to it.'
-    : t <= 25 ? 'Warm. Sweaty-bollocks warm.'
-    : t <= 30 ? 'Fucking roasting. Arse like a swamp.'
-    :           'Hotter than Satan\'s ringpiece.';
+  const FEELS = [
+    [-5, ['Fucking baltic. Nipples like chapel hat pegs.',
+          'Arctic bollocks. Your snot will freeze.',
+          'Colder than a penguin\'s arsehole. Stay in.',
+          'Deep-freeze. Wear everything you fucking own.']],
+    [0,  ['Brass monkeys. Cold enough to freeze your knackers off.',
+          'Freezing. Scrape the car and swear at it, it\'s tradition.',
+          'Below zero. Knob\'s gone into hibernation.',
+          'Proper cold. Gloves, hat, scarf, and a flask of something strong.']],
+    [5,  ['Nithering. Proper bollock-shrinking weather.',
+          'Chilly as fuck. Your fingers will be useless.',
+          'Cold. Heating on, and bollocks to the bill.',
+          'Raw. The kind of cold that gets into your fucking bones.']],
+    [10, ['Parky. Coat on, you soft shite.',
+          'Nippy. Don\'t be a hero in a T-shirt, dickhead.',
+          'Crisp. That\'s a nice word for fucking cold.',
+          'Coat weather. Big coat. Stop arguing.']],
+    [15, ['Bit fresh. Jumper weather, Mum was right.',
+          'Fresh. Hoodie and a smug face.',
+          'Mild-ish. Layers, you indecisive twat.',
+          'Not cold, not warm. Just sort of there, like a shit uncle.']],
+    [20, ['Pleasant. Don\'t get used to it.',
+          'Nice, actually. Which is fucking suspicious.',
+          'Lovely. Say nothing, or it\'ll bugger off.',
+          'Comfortable. The British summer, all four hours of it.']],
+    [25, ['Warm. Sweaty-bollocks warm.',
+          'Warm. Every fucker in shorts, regardless of legs.',
+          'Balmy. Beer garden or bust.',
+          'T-shirt weather. Pale bastards, mind your necks.']],
+    [30, ['Fucking roasting. Arse like a swamp.',
+          'Hot. Tube\'s a fucking oven.',
+          'Scorchio. Tarmac\'s melting and so am I.',
+          'Sweltering. Nobody in this country owns a fan. Tough shit.']],
+    [99, ['Hotter than Satan\'s ringpiece.',
+          'Absolutely cooking. Fuck this, I\'m moving to Iceland.',
+          'Heatwave. The Daily Mail is having kittens.',
+          'Surface of the fucking sun. Hosepipe ban incoming.']],
+  ];
+  const swearyFeels = t => pick((FEELS.find(([max]) => t <= max) ?? FEELS.at(-1))[1], 3);
 
-  const swearyUv = v => v<3 ? 'Bugger all' : v<6 ? 'Slap some on' : v<8 ? 'Burn, you twat'
-                      : v<11 ? 'Lobster-arse' : 'Cooked, mate';
+  const UV = [
+    [3,  ['Bugger all', 'Sod all', 'Nowt', 'Sunscreen? Don\'t be daft']],
+    [6,  ['Slap some on', 'Cream up, you pasty sod', 'Hat, you tit']],
+    [8,  ['Burn, you twat', 'Crispy by lunch', 'Factor 50, fuckwit']],
+    [11, ['Lobster-arse', 'Frying tonight', 'Skin cancer weather']],
+    [99, ['Cooked, mate', 'Fucking flambéed', 'Stay in the shade, idiot']],
+  ];
+  const swearyUv = v => pick(UV.find(([max]) => v < max)[1], 5);
 
-  const swearyGust = g => g >= 50 ? 'blowing a fucking hoolie'
-                        : g >= 35 ? 'blowing a gale'
-                        : g >= 22 ? 'bit wanky' : '';
+  const GUST = [
+    [50, ['blowing a fucking hoolie', 'hold onto your arse', 'bins are going walkabout']],
+    [35, ['blowing a gale', 'umbrella\'s fucked', 'hair ruined, obviously']],
+    [22, ['bit wanky', 'breezy bastard', 'nippy round the knees']],
+  ];
+  const swearyGust = g => { const b = GUST.find(([min]) => g >= min); return b ? pick(b[1], 7) : ''; };
   const fmt     = (v,dp=1) => v==null ? '—' : Number(v).toFixed(dp);
 
   /* Forecast: short per-day quips, keyed by the same buckets as wmoCondition */
   const DAY_QUIPS = {
-    'clear':         ['Sunny. Tits out.', 'Glorious. Shades on, knobhead.', 'Actual sun. Don\'t fuck it up.'],
-    'partly-cloudy': ['Sunny spells, cloudy twat bits.', 'Bit of everything. Meh.', 'Decent-ish. Don\'t hold your breath.'],
-    'overcast':      ['Grey. Fucking grey.', 'Dull as a Lib Dem conference.', 'Cloudy bollocks all day.'],
-    'fog':           ['Foggy bollocks.', 'Can\'t see shit.'],
-    'drizzle':       ['Drizzly shite.', 'Damp. Like a wanker\'s sock.', 'Mizzle. Neither one nor the fucking other.', 'Spitting on and off. Twat of a day.'],
-    'rain':          ['Pissing down.', 'Wet as fuck.', 'Rain. Obviously. Cunt of a day.'],
-    'showers':       ['Showers. Brolly roulette.', 'On-off pissing about.'],
-    'snow':          ['Snow. Trains fucked.', 'Snowing. Kids off school, you\'re fucked.'],
-    'storm':         ['Thunder. Hide the dog.', 'Storms. Absolute cunt of a day.'],
+    'clear':         ['Sunny. Tits out.', 'Glorious. Shades on, knobhead.', 'Actual sun. Don\'t fuck it up.',
+                      'Blue sky. Pull a sickie.', 'Scorchio, you lucky sods.', 'Sun\'s out. Guns out, twat.'],
+    'partly-cloudy': ['Sunny spells, cloudy twat bits.', 'Bit of everything. Meh.', 'Decent-ish. Don\'t hold your breath.',
+                      'Mixed bag of bollocks.', 'Sun now and then. Blink and you\'ll miss it.', 'Could be worse. Could be Wales.'],
+    'overcast':      ['Grey. Fucking grey.', 'Dull as a Lib Dem conference.', 'Cloudy bollocks all day.',
+                      'Grey lid. No sun, no joy.', 'Beige sky. Beige day. Beige life.', 'Overcast. Sod all happening.'],
+    'fog':           ['Foggy bollocks.', 'Can\'t see shit.', 'Murky as fuck.', 'Fog. Drive like a nun.'],
+    'drizzle':       ['Drizzly shite.', 'Damp. Like a wanker\'s sock.', 'Mizzle. Neither one nor the fucking other.', 'Spitting on and off. Twat of a day.',
+                      'Wet-ish. Hair ruined.', 'Drizzle. Soggy-arsed misery.'],
+    'rain':          ['Pissing down.', 'Wet as fuck.', 'Rain. Obviously. Cunt of a day.',
+                      'Wet. Stay in, watch shite telly.', 'Soggy bollocks.', 'Rain. Cancel everything.'],
+    'showers':       ['Showers. Brolly roulette.', 'On-off pissing about.', 'Showers. Dodge the bastards.',
+                      'Wet, dry, wet. Twat.', 'Hit-and-miss piss.'],
+    'snow':          ['Snow. Trains fucked.', 'Snowing. Kids off school, you\'re fucked.', 'Snow. Sledge out, dignity gone.',
+                      'White shite everywhere.'],
+    'storm':         ['Thunder. Hide the dog.', 'Storms. Absolute cunt of a day.', 'Stormy. Batten the fuck down.',
+                      'Thunder. God\'s moving furniture.'],
   };
   const HEAVY = new Set([65, 82, 86, 75, 99]);
   /* Quips rotate through each bucket across the week, so three drizzly days get
@@ -816,7 +929,10 @@
     for (const d of daily) {
       const b = wmoCondition(d.code);
       if (HEAVY.has(d.code) && b !== 'storm') {
-        d.quip = b === 'snow' ? 'Buried. Stay in, you pillock.' : 'Biblical. Stay in, you pillock.';
+        d.quip = pick(b === 'snow'
+          ? ['Buried. Stay in, you pillock.', 'Snowed in. Sod it, get the wine.', 'Blizzard. Nobody\'s going anywhere.']
+          : ['Biblical. Stay in, you pillock.', 'Deluge. Build a fucking ark.', 'Drowned. Wellies and a death wish.'],
+          Number(d.date.slice(-2)));
         continue;
       }
       const arr = DAY_QUIPS[b] || ['Fuck knows.'];
@@ -833,33 +949,61 @@
 
   /* Commentary, split two ways: the next few hours go on the hourly
      panel, tomorrow and the week go on the six-day panel. */
+  const OUT = {
+    rainSoon: [(t, p) => `Rain from about ${t}, ${p}% chance. Get the washing in, you pillock.`,
+               (t, p) => `Wet shite arriving around ${t} (${p}%). Plan accordingly, dickhead.`,
+               (t, p) => `Around ${t} it turns to piss, ${p}% chance. Brolly by the door.`,
+               (t, p) => `${p}% chance of rain from ${t}. Don't say I didn't fucking warn you.`],
+    dry:      ['Dry for the next twelve hours. A fucking miracle, frankly.',
+               'No rain for twelve hours. Hang the washing out and pray.',
+               'Dry as a bone till tonight. Nobody tell the sky.',
+               'Twelve hours of no rain. Mark it on the calendar, you won\'t see it again.'],
+    stops:    [t => `Should stop pissing down around ${t}. Allegedly.`,
+               t => `Dries up about ${t}. Probably. Don't bet your bollocks on it.`,
+               t => `Rain buggers off around ${t}. Hold tight.`],
+    wetAll:   ['And it\'s not stopping, viewers. Wet for the next twelve hours. Bollocks.',
+               'Rain all day and into the night. Give up and put the kettle on.',
+               'Twelve hours of wet. Your shoes are already fucked.'],
+    coldNight:[lo => `Down to ${lo}° tonight. Brass monkeys. Scrape the car, you poor sod.`,
+               lo => `${lo}° tonight. Extra duvet, or a warm dog.`,
+               lo => `Drops to ${lo}° overnight. Heating on and fuck the bill.`],
+    warmNight:[lo => `Only down to ${lo}° tonight. Sweaty, sleepless bollocks.`,
+               lo => `${lo}° overnight. Duvet on, duvet off, duvet on, fuck it.`,
+               lo => `Won't go below ${lo}° tonight. One leg out of the covers job.`],
+    brolly:   ['Brolly, you tit.', 'Take a coat.', 'You will get wet. Accept it.', 'Wellies, you daft sod.'],
+    bestDry:  [' and dry. Pull a sickie.', ' and dry. Book the fucking day off.', ' and dry. Barbecue, you legend.'],
+    bestMost: [' and mostly dry. Pull a sickie anyway.', ' and mostly dry. Worth a punt.', ' and mostly dry. Go on, risk it.'],
+    bestMeh:  ['. Which isn\'t saying much.', '. Least shit of a shit bunch.', '. Lower your fucking expectations.'],
+    worstWet: [p => `, ${p}% rain. Fucking typical.`, p => `, ${p}% rain. Write it off.`,
+               p => `, ${p}% chance of a soaking. Wank.`],
+    worstMeh: ['. Grim, but you\'ll live.', '. Bit shit, not tragic.', '. Meh. Stay under a blanket.'],
+  };
+
+  /* Commentary, split two ways: the next few hours go on the hourly
+     panel, tomorrow and the week go on the six-day panel. */
   function outlook(hours, daily, nowCode) {
     const now = [], week = [];
 
     const wetNow = isWet(nowCode);
     if (!wetNow) {
       const r = hours.find(h => h.pop >= 50 || isWet(h.code));
-      now.push(r
-        ? `Rain from about ${hh(r.time)}, ${r.pop ?? '?'}% chance. Get the washing in, you pillock.`
-        : 'Dry for the next twelve hours. A fucking miracle, frankly.');
+      now.push(r ? pick(OUT.rainSoon, 11)(hh(r.time), r.pop ?? '?') : pick(OUT.dry, 11));
     } else {
       const d = hours.find(h => h.pop < 30 && !isWet(h.code));
-      now.push(d
-        ? `Should stop pissing down around ${hh(d.time)}. Allegedly.`
-        : 'And it\'s not stopping, viewers. Wet for the next twelve hours. Bollocks.');
+      now.push(d ? pick(OUT.stops, 11)(hh(d.time)) : pick(OUT.wetAll, 11));
     }
 
     const night = hours.filter(h => !h.day);
     if (night.length) {
       const lo = Math.round(Math.min(...night.map(h => h.temp)));
-      if (lo <= 3) now.push(`Down to ${lo}° tonight. Brass monkeys. Scrape the car, you poor sod.`);
-      else if (lo >= 17) now.push(`Only down to ${lo}° tonight. Sweaty, sleepless bollocks.`);
+      if (lo <= 3) now.push(pick(OUT.coldNight, 13)(lo));
+      else if (lo >= 17) now.push(pick(OUT.warmNight, 13)(lo));
     }
 
     if (daily.length > 1) {
       const t = daily[1];
       week.push(`Tomorrow: ${Math.round(t.hi)}°, ${t.quip.charAt(0).toLowerCase() + t.quip.slice(1).replace(/\.$/, '')}` +
-        (t.pop >= 60 ? `. ${t.pop}% chance of rain. Brolly, you tit.` : '.'));
+        (t.pop >= 60 ? `. ${t.pop}% chance of rain. ${pick(OUT.brolly, 17)}` : '.'));
     }
 
     const rest = daily.slice(2);
@@ -869,11 +1013,9 @@
       const worst = rest.reduce((a, b) => score(b) < score(a) ? b : a);
       if (best.date !== worst.date) {
         week.push(`Best day's ${DAYSL[dow(best.date)]}, ${Math.round(best.hi)}°` +
-          (best.pop < 30 && !isWet(best.code) ? ' and dry. Pull a sickie.'
-           : best.pop < 30 ? ' and mostly dry. Pull a sickie anyway.'
-           : '. Which isn\'t saying much.') +
+          pick(best.pop < 30 && !isWet(best.code) ? OUT.bestDry : best.pop < 30 ? OUT.bestMost : OUT.bestMeh, 19) +
           ` Worst is ${DAYSL[dow(worst.date)]}` +
-          (worst.pop >= 50 ? `, ${worst.pop}% rain. Fucking typical.` : '. Grim, but you\'ll live.'));
+          (worst.pop >= 50 ? pick(OUT.worstWet, 23)(worst.pop) : pick(OUT.worstMeh, 23)));
       }
     }
     return { now, week };
@@ -950,23 +1092,38 @@
     ph.hidden = pd.hidden = false;
   }
 
-  const humNote  = h => h >= 85 ? 'Close. Swampy bollocks.' : h >= 70 ? 'Bit clammy.'
-                     : h >= 40 ? 'Comfortable. Enjoy it.' : 'Dry as a camel\'s arse.';
-  const presNote = p => p < 990 ? 'Very low. Batten down the fucking hatches.'
-                     : p < 1005 ? 'Low. Unsettled, like a pissed uncle.'
-                     : p <= 1022 ? 'About normal. Boring.' : 'High. Settled, for once.';
+  const HUM = [
+    [85, ['Close. Swampy bollocks.', 'Muggy as fuck. Air you could drink.', 'Sticky. Like a nightclub floor.']],
+    [70, ['Bit clammy.', 'Clammy. Damp pits incoming.', 'Humid-ish. Hair\'s going frizzy, love.']],
+    [40, ['Comfortable. Enjoy it.', 'Just right. Goldilocks can fuck off.', 'Fine. Nothing to moan about, sorry.']],
+    [0,  ['Dry as a camel\'s arse.', 'Parched. Lips like a Pringle.', 'Desert-dry. Moisturise, you crusty sod.']],
+  ];
+  const humNote  = h => pick(HUM.find(([min]) => h >= min)[1], 29);
+  const PRES = [
+    [990,  ['Very low. Batten down the fucking hatches.', 'Deep low. Something nasty\'s brewing.', 'Rock bottom. Storm\'s on its way, mate.']],
+    [1005, ['Low. Unsettled, like a pissed uncle.', 'Lowish. Weather\'s in a mood.', 'Low. Expect bollocks.']],
+    [1023, ['About normal. Boring.', 'Middling. Nothing to see here.', 'Average. Like your cooking.']],
+    [9999, ['High. Settled, for once.', 'High. Calm. Don\'t fucking trust it.', 'High pressure. Smug weather.']],
+  ];
+  const presNote = p => pick(PRES.find(([max]) => p < max)[1], 31);
+  const RAIN_NONE = ['None expected today. Don\'t jinx it.', 'Dry day forecast. Touch fucking wood.',
+                     'No rain due. Enjoy it while it lasts, it won\'t.'];
   const clockHM  = iso => iso ? iso.slice(11, 16) : '—';
 
   /* Met Office warnings. The warning text itself is safety info, so it stays
      verbatim; only the one-line kicker swears. */
-  const WARN_KICK = { yellow: 'Heads up, you lot.', amber: 'Proper shit incoming.', red: 'Fucking stay in.' };
+  const WARN_KICK = {
+    yellow: ['Heads up, you lot.', 'Bit of bother on the way.', 'Mild peril, you soft sods.'],
+    amber:  ['Proper shit incoming.', 'This one\'s not fucking about.', 'Serious bollocks. Pay attention.'],
+    red:    ['Fucking stay in.', 'Danger to life. Not a fucking joke.', 'Stay home. Seriously. Fuck the plans.'],
+  };
   function renderWarnings(list) {
     const el = document.getElementById('warnings');
     if (!list || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
     el.innerHTML = list.map(w => `
       <a class="warn ${esc(w.level)}" href="${esc(w.link)}" target="_blank" rel="noopener">
         <b>${esc(w.title)}</b>
-        <p><span class="kicker">${esc(WARN_KICK[w.level] || '')}</span> ${esc(w.description)}</p>
+        <p><span class="kicker">${esc(WARN_KICK[w.level] ? pick(WARN_KICK[w.level], 37) : '')}</span> ${esc(w.description)}</p>
       </a>`).join('');
     el.hidden = false;
   }
@@ -1032,7 +1189,7 @@
       /* Rain */
       document.getElementById('rain').innerHTML = `${fmt(d.rain, 1)}<small>mm</small>`;
       document.getElementById('rain-today').textContent = today && today.rain != null
-        ? (today.rain < 0.1 ? 'None expected today. Don\'t jinx it.' : `${fmt(today.rain, 1)} mm expected today.`) : '';
+        ? (today.rain < 0.1 ? pick(RAIN_NONE, 41) : `${fmt(today.rain, 1)} mm expected today.` + (today.rain >= 10 ? ' Absolute soaking.' : '')) : '';
 
       /* Sun: show whichever event comes next */
       if (today && today.sunset) {
@@ -1055,7 +1212,7 @@
         ? `Met Office forecast, updated ${new Date(mo.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Sunrise/sunset from Open-Meteo.`
         : `Updated ${when} from Open-Meteo`;
     } catch (e) {
-      document.getElementById('condition').textContent = 'Couldn\'t reach the weather server. Retrying in five minutes.';
+      document.getElementById('condition').textContent = 'Weather server\'s fucked off somewhere. Retrying in five minutes.';
     }
   }
 
