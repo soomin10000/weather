@@ -9,6 +9,7 @@ import urllib.error
 import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+from urllib.parse import parse_qs, urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
@@ -108,7 +109,7 @@ MO_CODES = {
     28: (95, 'Thunder shower'), 29: (95, 'Thunder shower'), 30: (95, 'Thunder'),
 }
 
-_state = {'data': None, 'forecast': None, 'metoffice': None, 'warnings': None, 'bpf': None,
+_state = {'garden': None, 'data': None, 'forecast': None, 'metoffice': None, 'warnings': None, 'bpf': None,
           'error': None, 'fetched_at': None}
 _lock = threading.Lock()
 
@@ -466,7 +467,16 @@ def poll_loop():
                 code = getattr(e, 'code', None)
                 bpf_next = now + (10800 if code in (401, 403, 429) else 1800)
 
+        try:
+            g = forecast_log.fetch_garden()
+            with _lock:
+                _state['garden'] = g
+        except Exception as e:
+            print(f'garden poll failed: {e}')   # keep the last reading; the page ages it out
+            g = None
         if now >= obs_next:
+            if g:
+                forecast_log.log_garden(g)
             forecast_log.log_observations()
             obs_next = now + forecast_log.OBS_EVERY
 
@@ -492,6 +502,13 @@ class Handler(BaseHTTPRequestHandler):
             self._file('index.html', 'text/html; charset=utf-8')
         elif self.path == '/apple-touch-icon.png':
             self._file('apple-touch-icon.png', 'image/png')
+        elif self.path.startswith('/api/history'):
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                hours = min(max(int(q.get('hours', ['72'])[0]), 1), 24 * 14)
+            except ValueError:
+                hours = 72
+            self._json(forecast_log.history(hours))
         elif self.path == '/api/weather':
             with _lock:
                 payload = dict(_state)

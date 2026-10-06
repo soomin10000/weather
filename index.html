@@ -359,6 +359,18 @@
     }
 
     /* Widget grid */
+    .hist-tabs { display: flex; gap: 0.35rem; margin: 0.3rem 0 0.4rem; }
+    .hist-tabs button { font: inherit; font-size: 0.82rem; color: var(--ink-2); background: transparent;
+      border: 1px solid var(--hair); border-radius: 99px; padding: 0.2rem 0.7rem; cursor: pointer; }
+    .hist-tabs button.on { background: var(--tab); color: var(--tab-ink); border-color: transparent; font-weight: 600; }
+    .hist-h { font-size: 0.8rem; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin: 0.6rem 0 0.1rem; }
+    .hist-svg { width: 100%; height: 200px; display: block; overflow: visible; }
+    .hist-svg.hist-short { height: 110px; }
+    .hist-svg text { fill: var(--ink-3); font-size: 10px; font-variant-numeric: tabular-nums; }
+    .hist-svg .grid { stroke: var(--hair); stroke-width: 1; }
+    .hist-key { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.8rem; color: var(--ink-2); margin-top: 0.3rem; }
+    .hist-key i { display: inline-block; width: 1.1em; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 0.35em; }
+    html.hub #p-hist { display: none; }
     .widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
     .widget {
       aspect-ratio: 1; display: flex; flex-direction: column;
@@ -480,7 +492,7 @@
     /* Widgets: one row of tiles, headline numbers only; humidity and pressure
        don't earn a slot on a kitchen screen */
     html.hub .widgets { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
-    html.hub .widgets > :nth-child(2), html.hub .widgets > :nth-child(6) { display: none; }
+    html.hub .widgets > :nth-child(2), html.hub .widgets > :nth-child(6), html.hub .widgets > :nth-child(n+7) { display: none; }
     html.hub .widget { aspect-ratio: auto; padding: 0.45rem 0.7rem 0.5rem; }
     html.hub .widget h2 { font-size: 0.8rem; margin-bottom: 0.1rem; }
     html.hub .w-val { font-size: 1.4rem; white-space: nowrap; }
@@ -621,8 +633,35 @@
       <div class="w-val" id="pressure">—<small>hPa</small></div>
       <div class="w-sub" id="pres-note"></div>
     </div>
+
+    <div class="panel widget">
+      <h2>Garden</h2>
+      <div class="w-val" id="garden-temp">—</div>
+      <div class="w-note" id="garden-hum"></div>
+      <div class="w-sub" id="garden-note"></div>
+    </div>
+
+    <div class="panel widget">
+      <h2>Shed</h2>
+      <div class="w-val" id="shed-temp">—</div>
+      <div class="w-note" id="shed-hum"></div>
+      <div class="w-sub" id="shed-note"></div>
+    </div>
   </section>
   </div>
+
+  <section class="panel" id="p-hist" aria-label="Garden history">
+    <h2>History</h2>
+    <div class="hist-tabs" id="hist-tabs">
+      <button data-h="24">24h</button><button data-h="72" class="on">3 days</button><button data-h="168">7 days</button>
+    </div>
+    <h3 class="hist-h">Temperature</h3>
+    <svg class="hist-svg" id="hist-temp" role="img" aria-label="Temperature history"></svg>
+    <div class="hist-key" id="hist-key"></div>
+    <h3 class="hist-h">Pressure</h3>
+    <svg class="hist-svg hist-short" id="hist-pres" role="img" aria-label="Pressure history"></svg>
+    <div class="w-sub" id="hist-note"></div>
+  </section>
 
   <footer class="p-footer" id="updated"></footer>
 </main>
@@ -1358,6 +1397,76 @@
 
   /* Fetch + render */
   let firstRender = true;
+  /* History charts: inline SVG, no library. Series are [{name, color, dash?, pts:[[ms,v],...]}] */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function drawChart(svg, series, unit, dec) {
+    svg.innerHTML = '';
+    const all = series.flatMap(s => s.pts);
+    if (!all.length) return;
+    const W = svg.clientWidth || 600, H = svg.clientHeight || 200;
+    const m = { l: 34, r: 6, t: 8, b: 18 };
+    const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs, x0 + 1);
+    let y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const pad = Math.max((y1 - y0) * 0.1, dec ? 0.5 : 1); y0 -= pad; y1 += pad;
+    const X = t => m.l + (t - x0) / (x1 - x0) * (W - m.l - m.r);
+    const Y = v => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const el = (n, a, txt) => { const e = document.createElementNS(SVGNS, n);
+      for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; };
+    for (let i = 0; i <= 3; i++) {
+      const v = y0 + (y1 - y0) * i / 3, y = Y(v);
+      el('line', { x1: m.l, x2: W - m.r, y1: y, y2: y, class: 'grid' });
+      el('text', { x: m.l - 4, y: y + 3, 'text-anchor': 'end' }, v.toFixed(dec));
+    }
+    /* x labels: midnight ticks over multi-day spans, otherwise every few hours */
+    const span = x1 - x0, step = span > 36 * 3600e3 ? 24 * 3600e3 : 6 * 3600e3;
+    for (let t = Math.ceil(x0 / step) * step; t <= x1; t += step) {
+      const d = new Date(t);
+      el('text', { x: X(t), y: H - 4, 'text-anchor': 'middle' },
+         step >= 24 * 3600e3 ? d.toLocaleDateString('en-GB', { weekday: 'short' })
+                             : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+    }
+    for (const s of series) {
+      if (!s.pts.length) continue;
+      /* break the line across gaps (gateway offline) rather than draw through them */
+      let d = '', prev = null;
+      for (const [t, v] of s.pts) { d += (prev === null || t - prev > (s.gap || 2 * 3600e3) ? 'M' : 'L') + X(t).toFixed(1) + ' ' + Y(v).toFixed(1); prev = t; }
+      el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': s.dash ? 1.5 : 2, 'stroke-linejoin': 'round',
+                   'stroke-dasharray': s.dash || 'none' });
+      const last = s.pts[s.pts.length - 1];   /* dot on the latest point so a short series still shows */
+      el('circle', { cx: X(last[0]), cy: Y(last[1]), r: 3, fill: s.color });
+    }
+  }
+
+  let histHours = 72;
+  async function drawHistory() {
+    try {
+      const h = await fetch('/api/history?hours=' + histHours).then(r => r.json());
+      const col = i => h.garden.filter(r => r[i] != null).map(r => [r[0], r[i]]);
+      const temp = [
+        { name: 'Garden',   color: '#ffd21f', pts: col(1), gap: 3600e3 },
+        { name: 'Shed',     color: '#ff8a65', pts: col(3), gap: 3600e3 },
+        { name: 'Forecast', color: '#ffffff', dash: '4 3', pts: h.forecast },
+      ].filter(s => s.pts.length);
+      drawChart(document.getElementById('hist-temp'), temp, '°C', 1);
+      document.getElementById('hist-key').innerHTML = temp.map(s =>
+        `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
+      drawChart(document.getElementById('hist-pres'), [{ name: 'Pressure', color: '#8fd0ff', pts: col(5), gap: 3600e3 }], 'hPa', 0);
+      document.getElementById('hist-note').textContent = h.garden.length < 2
+        ? 'Garden and Shed logging started 6 Oct, so there is not much to see yet.'
+        : 'Forecast is the latest Open-Meteo run made before each hour.';
+    } catch (e) { console.warn('history failed', e); }
+  }
+  document.getElementById('hist-tabs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    histHours = +b.dataset.h;
+    document.querySelectorAll('#hist-tabs button').forEach(x => x.classList.toggle('on', x === b));
+    drawHistory();
+  });
+  drawHistory(); setInterval(drawHistory, 600000);
+  window.addEventListener('resize', () => { clearTimeout(drawHistory.t); drawHistory.t = setTimeout(drawHistory, 250); });
+
   async function refresh() {
     try {
       const j = await fetch('/api/weather').then(r => r.json());
@@ -1430,6 +1539,17 @@
       /* Pressure */
       document.getElementById('pressure').innerHTML = `${fmt(d.surface_pressure, 0)}<small>hPa</small>`;
       document.getElementById('pres-note').textContent = d.surface_pressure != null ? presNote(d.surface_pressure) : '';
+
+      /* Garden (outdoor WN32) and Shed (the gateway's own sensor), from the Ecowitt GW1200A.
+         Blank rather than stale if the poll has been failing for over 30 min. */
+      const gd = j.garden && (Date.now() / 1000 - j.garden.time) < 1800 ? j.garden : null;
+      const sensor = (id, o, note) => {
+        document.getElementById(id + '-temp').innerHTML = o && o.temp != null ? `${fmt(o.temp, 1)}<small>°C</small>` : '—';
+        document.getElementById(id + '-hum').textContent = o && o.humidity != null ? `${fmt(o.humidity, 0)}% humidity` : '';
+        document.getElementById(id + '-note').textContent = o ? note(o) : 'No reading';
+      };
+      sensor('garden', gd?.garden, o => o.dewpoint != null ? `Dew point ${fmt(o.dewpoint, 1)}°` : '');
+      sensor('shed', gd?.shed, () => gd.pressure != null ? `${fmt(gd.pressure, 0)} hPa` : '');
 
       const when = j.fetched_at ? new Date(j.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
       document.getElementById('updated').textContent = mo

@@ -23,6 +23,7 @@ LONDON = ZoneInfo('Europe/London')
 MAX_LEAD_H = 72
 FORECAST_EVERY = 3600
 OBS_EVERY = 1800
+GARDEN_HOST = os.environ.get('GARDEN_HOST', '192.168.1.174')   # Ecowitt GW1200A, local API
 
 # Keyless METAR feed. Airports ring us: Heathrow NW 19 km, Biggin Hill E 19 km
 # (183 m up, runs cooler), London City NE 25 km (urban), Gatwick S 25 km.
@@ -53,6 +54,10 @@ CREATE TABLE IF NOT EXISTS observations (
     raining INTEGER,              -- 1 if wx has rain/drizzle/showers
     raw TEXT,
     PRIMARY KEY (station, obs_utc)
+);
+CREATE TABLE IF NOT EXISTS garden_log (   -- Ecowitt GW1200A: outdoor WN32 + the gateway's own sensor in the shed
+    obs_utc TEXT PRIMARY KEY,
+    garden_temp REAL, garden_hum REAL, shed_temp REAL, shed_hum REAL, pressure REAL
 );
 CREATE INDEX IF NOT EXISTS forecasts_valid ON forecasts (valid_utc);
 """
@@ -110,6 +115,46 @@ def fetch_metars():
         return json.loads(r.read())
 
 
+def fetch_garden():
+    """Poll the Ecowitt GW1200A's local API. Returns the outdoor WN32 ('garden') and the
+    gateway's own sensor ('shed', it lives in the shed), or None if unreachable."""
+    with urllib.request.urlopen(f'http://{GARDEN_HOST}/get_livedata_info', timeout=10) as r:
+        d = json.loads(r.read())
+    common = {c['id']: c for c in d.get('common_list', [])}
+    def num(v):
+        try:
+            return float(str(v).split()[0].rstrip('%'))
+        except (ValueError, IndexError):
+            return None   # '--' when a sensor isn't reporting
+    wh25 = (d.get('wh25') or [{}])[0]
+    return {
+        'garden': {'temp': num(common.get('0x02', {}).get('val')), 'humidity': num(common.get('0x07', {}).get('val')),
+                   'dewpoint': num(common.get('0x03', {}).get('val'))},
+        'shed': {'temp': num(wh25.get('intemp')), 'humidity': num(wh25.get('inhumi'))},
+        'pressure': num(wh25.get('rel')),
+        'time': int(time.time()),
+    }
+
+
+def log_garden(g=None):
+    """Store the garden station's current reading as station GARDEN. Never raises."""
+    try:
+        g = g or fetch_garden()
+        if g['garden']['temp'] is None:
+            return 0
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ')
+        with _lock, _db() as con:
+            before = con.total_changes
+            con.execute('INSERT OR IGNORE INTO observations (station, obs_utc, temp, dewpoint, pressure, raining) '
+                        'VALUES (?,?,?,?,?,0)', ('GARDEN', now, g['garden']['temp'], g['garden']['dewpoint'], g['pressure']))
+            con.execute('INSERT OR IGNORE INTO garden_log VALUES (?,?,?,?,?,?)',
+                        (now, g['garden']['temp'], g['garden']['humidity'], g['shed']['temp'], g['shed']['humidity'], g['pressure']))
+            return con.total_changes - before
+    except Exception as e:
+        print(f'garden poll failed: {e}')
+        return 0
+
+
 def log_observations():
     """Never raises; returns how many new reports were stored."""
     try:
@@ -128,6 +173,26 @@ def log_observations():
     except Exception as e:
         print(f'observation log failed: {e}')
         return 0
+
+
+def history(hours=72):
+    """Series for the page's charts, as [epoch_ms, value...] rows, oldest first. Never raises."""
+    ms = lambda iso: int(datetime.fromisoformat(iso.replace('Z', '+00:00')).timestamp() * 1000)
+    since = datetime.fromtimestamp(time.time() - hours * 3600, timezone.utc).strftime('%Y-%m-%dT%H:%MZ')
+    try:
+        with _lock, _db() as con:
+            garden = [[ms(t), *r] for t, *r in con.execute(
+                'SELECT obs_utc, garden_temp, garden_hum, shed_temp, shed_hum, pressure FROM garden_log '
+                'WHERE obs_utc >= ? ORDER BY obs_utc', (since,))]
+            # what Open-Meteo predicted for each hour, from its latest run (shortest lead) before that hour
+            fc = [[ms(t), v] for t, v in con.execute(
+                "SELECT valid_utc, temp FROM (SELECT valid_utc, temp, MIN(lead_h) FROM forecasts "
+                "WHERE source='openmeteo' AND lead_h >= 0 AND valid_utc >= ? AND valid_utc <= strftime('%Y-%m-%dT%H:%MZ','now') "
+                'AND temp IS NOT NULL GROUP BY valid_utc) ORDER BY valid_utc', (since,))]
+        return {'garden': garden, 'forecast': fc}
+    except Exception as e:
+        print(f'history failed: {e}')
+        return {'garden': [], 'forecast': []}
 
 
 def report(station='EGLL'):
@@ -167,6 +232,9 @@ def report(station='EGLL'):
 if __name__ == '__main__':
     if sys.argv[1:2] == ['report']:
         report(sys.argv[2] if len(sys.argv) > 2 else 'EGLL')
+    elif sys.argv[1:2] == ['garden']:
+        print(fetch_garden())
+        print(log_garden(), 'new reports')
     elif sys.argv[1:2] == ['obs']:
         print(log_observations(), 'new reports')
     else:
