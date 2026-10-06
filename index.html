@@ -1478,6 +1478,11 @@
       const bpf = bpfFresh(j.bpf) ? j.bpf : null;
       renderWarnings(j.warnings, thunderAlert(bpf, d.time));
 
+      /* Garden sensor (Ecowitt) overrides the model's temperature and humidity while its
+         reading is under 30 min old; otherwise fall back to Open-Meteo. */
+      const gd = j.garden && (Date.now() / 1000 - j.garden.time) < 1800 ? j.garden : null;
+      const gTemp = gd?.garden?.temp ?? null, gHum = gd?.garden?.humidity ?? null;
+
       const code = d.weather_code ?? 0;
       const day  = !!d.is_day;
       applyTheme(wmoCondition(code), day);
@@ -1486,7 +1491,7 @@
       renderForecast(mo || j.forecast, d.time, code, bpf);
 
       document.getElementById('location').textContent   = d.location_name || 'Weather';
-      document.getElementById('temp').textContent       = fmt(d.temperature_2m, 0);
+      document.getElementById('temp').textContent       = fmt(gTemp ?? d.temperature_2m, 0);
       document.getElementById('cond-plain').textContent = d.description || '';
       document.getElementById('hilo').innerHTML = today
         ? `<span>H ${fmt(today.hi, 0)}°</span><span>L ${fmt(today.lo, 0)}°</span>` : '';
@@ -1507,7 +1512,7 @@
       setWindLines((gust ?? spd ?? 0) >= 22);
 
       /* Humidity */
-      const hum = d.relative_humidity_2m;
+      const hum = gHum ?? d.relative_humidity_2m;
       document.getElementById('humidity').textContent = hum != null ? `${fmt(hum, 0)}%` : '—';
       document.getElementById('hum-note').textContent = hum != null ? humNote(hum) : '';
       if (hum != null)
@@ -1542,7 +1547,6 @@
 
       /* Garden (outdoor WN32) and Shed (the gateway's own sensor), from the Ecowitt GW1200A.
          Blank rather than stale if the poll has been failing for over 30 min. */
-      const gd = j.garden && (Date.now() / 1000 - j.garden.time) < 1800 ? j.garden : null;
       const sensor = (id, o, note) => {
         document.getElementById(id + '-temp').innerHTML = o && o.temp != null ? `${fmt(o.temp, 1)}<small>°C</small>` : '—';
         document.getElementById(id + '-hum').textContent = o && o.humidity != null ? `${fmt(o.humidity, 0)}% humidity` : '';
