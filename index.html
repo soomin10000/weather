@@ -370,7 +370,7 @@
     .hist-svg .grid { stroke: var(--hair); stroke-width: 1; }
     .hist-key { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.8rem; color: var(--ink-2); margin-top: 0.3rem; }
     .hist-key i { display: inline-block; width: 1.1em; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 0.35em; }
-    html.hub #p-hist { display: none; }
+    html.hub #p-hist, html.hub #p-blend { display: none; }
     .widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
     .widget {
       aspect-ratio: 1; display: flex; flex-direction: column;
@@ -649,6 +649,13 @@
     </div>
   </section>
   </div>
+
+  <section class="panel" id="p-blend" aria-label="Blended forecast" hidden>
+    <h2>Blended forecast</h2>
+    <div class="w-sub" id="blend-sum"></div>
+    <svg class="hist-svg" id="blend-temp" role="img" aria-label="Blended temperature forecast, next 48 hours"></svg>
+    <div class="w-sub" id="blend-note"></div>
+  </section>
 
   <section class="panel" id="p-hist" aria-label="Garden history">
     <h2>History</h2>
@@ -1439,6 +1446,26 @@
     }
   }
 
+  /* Blended forecast: Open-Meteo + Met Office + BPF, corrected against the garden sensor (see forecast_log.blend) */
+  async function drawBlend() {
+    try {
+      const b = await fetch('/api/blend').then(r => r.json());
+      const pts = b.hourly.slice(0, 48).map(([t, v]) => [Date.parse(t), v]);
+      const panel = document.getElementById('p-blend');
+      panel.hidden = pts.length < 2;
+      if (pts.length < 2) return;
+      const day = pts.slice(0, 24).map(p => p[1]);
+      document.getElementById('blend-sum').textContent =
+        `Next 24 hours: ${Math.round(Math.min(...day))}° to ${Math.round(Math.max(...day))}°`;
+      drawChart(document.getElementById('blend-temp'), [{ name: 'Blend', color: '#ffd21f', pts, gap: 2 * 3600e3 }], '°C', 1);
+      const n = Math.min(...Object.values(b.weights).map(w => w.n));
+      document.getElementById('blend-note').textContent = n < 48
+        ? `Still learning from the garden sensor (${n} of 48 hours), so sources are weighted equally for now.`
+        : 'Sources are weighted by how closely each has matched the garden sensor.';
+    } catch (e) { console.warn('blend failed', e); }
+  }
+  drawBlend(); setInterval(drawBlend, 600000);
+
   let histHours = 72;
   async function drawHistory() {
     try {
@@ -1465,7 +1492,7 @@
     drawHistory();
   });
   drawHistory(); setInterval(drawHistory, 600000);
-  window.addEventListener('resize', () => { clearTimeout(drawHistory.t); drawHistory.t = setTimeout(drawHistory, 250); });
+  window.addEventListener('resize', () => { clearTimeout(drawHistory.t); drawHistory.t = setTimeout(() => { drawHistory(); drawBlend(); }, 250); });
 
   async function refresh() {
     try {

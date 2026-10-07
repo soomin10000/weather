@@ -388,7 +388,7 @@ def _load_bpf_cache():
 
 
 def poll_loop():
-    mo_next = warn_next = obs_next = 0
+    mo_next = warn_next = obs_next = wu_next = blend_next = 0
     om_forecast = {}
     cached = _load_bpf_cache()
     if cached:
@@ -467,6 +467,13 @@ def poll_loop():
                 code = getattr(e, 'code', None)
                 bpf_next = now + (10800 if code in (401, 403, 429) else 1800)
 
+        if forecast_log.WU_KEY and now >= wu_next:
+            # 5-day daily forecast; hourly refresh is plenty, and a failure just retries in 30 min
+            wu_next = now + (3600 if forecast_log.log_wunderground(cfg['latitude'], cfg['longitude']) else 1800)
+        if now >= blend_next:
+            forecast_log.blend(log=True)
+            blend_next = now + 3600
+
         try:
             g = forecast_log.fetch_garden()
             with _lock:
@@ -502,6 +509,8 @@ class Handler(BaseHTTPRequestHandler):
             self._file('index.html', 'text/html; charset=utf-8')
         elif self.path == '/apple-touch-icon.png':
             self._file('apple-touch-icon.png', 'image/png')
+        elif self.path == '/api/blend':
+            self._json(forecast_log.blend())
         elif self.path.startswith('/api/history'):
             q = parse_qs(urlparse(self.path).query)
             try:

@@ -14,6 +14,7 @@ import sqlite3
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -24,6 +25,15 @@ MAX_LEAD_H = 72
 FORECAST_EVERY = 3600
 OBS_EVERY = 1800
 GARDEN_HOST = os.environ.get('GARDEN_HOST', '192.168.1.174')   # Ecowitt GW1200A, local API
+GARDEN_FROM = '2026-10-06T17:00Z'   # remote sensor moved outdoors ~15:00Z; earlier readings are indoor
+
+# Weather Underground / Weather Company. A PWS-tier key reaches the daily forecast only
+# (hourly is 401). Optional: without the key the source is skipped. Env only, no default.
+WU_KEY = os.environ.get('WUNDERGROUND_API_KEY')
+WU_URL = ('https://api.weather.com/v3/wx/forecast/daily/5day?geocode={},{}'
+          '&format=json&units=h&language=en-GB&apiKey={}')
+BLEND_SOURCES = ['openmeteo', 'metoffice', 'bpf']
+BLEND_MIN_N = 48    # scored hours needed per source and lead bucket before we trust its history
 
 # Keyless METAR feed. Airports ring us: Heathrow NW 19 km, Biggin Hill E 19 km
 # (183 m up, runs cooler), London City NE 25 km (urban), Gatwick S 25 km.
@@ -58,6 +68,11 @@ CREATE TABLE IF NOT EXISTS observations (
 CREATE TABLE IF NOT EXISTS garden_log (   -- Ecowitt GW1200A: outdoor WN32 + the gateway's own sensor in the shed
     obs_utc TEXT PRIMARY KEY,
     garden_temp REAL, garden_hum REAL, shed_temp REAL, shed_hum REAL, pressure REAL
+);
+CREATE TABLE IF NOT EXISTS daily_forecasts (   -- one row per source, issue and local day
+    source TEXT NOT NULL, issued_at INTEGER NOT NULL, day TEXT NOT NULL,   -- day 'YYYY-MM-DD' London
+    tmax REAL, tmin REAL, pop_day REAL, pop_night REAL, qpf REAL, wind REAL, phrase TEXT,
+    PRIMARY KEY (source, issued_at, day)
 );
 CREATE INDEX IF NOT EXISTS forecasts_valid ON forecasts (valid_utc);
 """
@@ -173,6 +188,114 @@ def log_observations():
     except Exception as e:
         print(f'observation log failed: {e}')
         return 0
+
+
+def fetch_wunderground(lat, lon):
+    url = WU_URL.format(lat, lon, WU_KEY)
+    req = urllib.request.Request(url, headers={'User-Agent': 'local-weather/1.0'})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read())
+
+
+def log_wunderground(lat, lon):
+    """Daily forecast into daily_forecasts. Never raises; returns rows stored. The error
+    text is the HTTP code only, so the key in the URL can't reach the logs."""
+    try:
+        d = fetch_wunderground(lat, lon)
+        dp = d['daypart'][0]
+        now = int(time.time())
+        rows = []
+        for i, t in enumerate(d['validTimeLocal']):
+            day, night = 2 * i, 2 * i + 1
+            # today's day-part goes null once the afternoon is under way; use the max we have
+            rows.append(('wunderground', now, t[:10], d['temperatureMax'][i], d['temperatureMin'][i],
+                         dp['precipChance'][day], dp['precipChance'][night], d['qpf'][i],
+                         dp['windSpeed'][day] if dp['windSpeed'][day] is not None else dp['windSpeed'][night],
+                         dp['wxPhraseLong'][day] or dp['wxPhraseLong'][night]))
+        with _lock, _db() as con:
+            before = con.total_changes
+            con.executemany('INSERT OR IGNORE INTO daily_forecasts VALUES (?,?,?,?,?,?,?,?,?,?)', rows)
+            return con.total_changes - before
+    except urllib.error.HTTPError as e:
+        print(f'wunderground failed: HTTP {e.code}')
+    except Exception as e:
+        print(f'wunderground failed: {type(e).__name__}')
+    return 0
+
+
+def _bucket(lead):
+    return 0 if lead < 6 else 1 if lead < 24 else 2
+
+
+def blend_weights(con):
+    """Per source and lead bucket: (bias, weight, n) from how each source's temperature
+    matched the outdoor garden sensor. Bias is forecast minus observed, so it gets subtracted.
+    Until a source has BLEND_MIN_N scored hours it gets no bias correction and weight 1."""
+    garden = {h: t for h, t in con.execute(
+        "SELECT strftime('%Y-%m-%dT%H:00Z', obs_utc, '+30 minutes'), AVG(garden_temp) FROM garden_log "
+        'WHERE obs_utc >= ? AND garden_temp IS NOT NULL GROUP BY 1', (GARDEN_FROM,))}
+    errs = {}
+    for src, lead, valid, temp in con.execute(
+            'SELECT source, lead_h, valid_utc, temp FROM forecasts WHERE source IN (%s) AND temp IS NOT NULL'
+            % ','.join('?' * len(BLEND_SOURCES)), BLEND_SOURCES):
+        if valid in garden:
+            errs.setdefault((src, _bucket(lead)), []).append((valid, temp - garden[valid]))
+    out = {}
+    for b in range(3):
+        stats = {}
+        for src in BLEND_SOURCES:
+            pairs = errs.get((src, b), [])
+            e = [x for _, x in pairs]
+            n = len({v for v, _ in pairs})   # distinct hours: successive issues of one hour aren't independent
+            if n >= BLEND_MIN_N:
+                bias = sum(e) / len(e)
+                var = sum((x - bias) ** 2 for x in e) / len(e)
+                stats[src] = (bias, 1 / max(var, 0.25), n)   # floor: 0.5 C of noise is the sensor's own
+            else:
+                stats[src] = (0.0, 1.0, n)
+        total = sum(w for _, w, _ in stats.values())
+        for src, (bias, w, n) in stats.items():
+            out[(src, b)] = (bias, w / total, n)
+    return out
+
+
+def blend(log=False):
+    """Blended hourly temperature from the latest issue of each source, bias-corrected
+    and weighted by recent accuracy. Returns {'hourly': [[valid_utc, temp]...], 'weights': ...}."""
+    try:
+        now = time.time()
+        with _lock, _db() as con:
+            w = blend_weights(con)
+            hours = {}
+            for src in BLEND_SOURCES:
+                issued = con.execute('SELECT MAX(issued_at) FROM forecasts WHERE source=?', (src,)).fetchone()[0]
+                if not issued or now - issued > 6 * 3600:
+                    continue
+                for valid, temp in con.execute(
+                        'SELECT valid_utc, temp FROM forecasts WHERE source=? AND issued_at=? AND temp IS NOT NULL',
+                        (src, issued)):
+                    t = datetime.fromisoformat(valid.replace('Z', '+00:00')).timestamp()
+                    if t < now - 1800:
+                        continue
+                    lead = round((t - now) / 3600)
+                    bias, wt, _ = w[(src, _bucket(lead))]
+                    hours.setdefault(valid, []).append((temp - bias, wt, lead))
+            out = []
+            for valid in sorted(hours):
+                v = hours[valid]
+                tw = sum(x[1] for x in v)
+                out.append((valid, round(sum(x[0] * x[1] for x in v) / tw, 2), v[0][2]))
+            if log and out and now - _last.get('blend', 0) >= FORECAST_EVERY:
+                con.executemany('INSERT OR IGNORE INTO forecasts (source, issued_at, valid_utc, lead_h, temp) '
+                                "VALUES ('blend', ?, ?, ?, ?)",
+                                [(int(now), v, lead, t) for v, t, lead in out if 0 <= lead <= MAX_LEAD_H])
+                _last['blend'] = now
+        return {'hourly': [[v, t] for v, t, _ in out],
+                'weights': {f'{s}/{["0-5h", "6-23h", "24h+"][b]}': {'bias': round(x[0], 2), 'weight': round(x[1], 2), 'n': x[2]}
+                            for (s, b), x in w.items()}}
+    except Exception as e:
+        print(f'blend failed: {e}')
+        return {'hourly': [], 'weights': {}}
 
 
 def history(hours=72):
