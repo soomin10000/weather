@@ -69,6 +69,10 @@ CREATE TABLE IF NOT EXISTS garden_log (   -- Ecowitt GW1200A: outdoor WN32 + the
     obs_utc TEXT PRIMARY KEY,
     garden_temp REAL, garden_hum REAL, shed_temp REAL, shed_hum REAL, pressure REAL
 );
+CREATE TABLE IF NOT EXISTS wn31_log (   -- Ecowitt WN31 multi-channel temp/humidity sensors, channels 1-8
+    obs_utc TEXT NOT NULL, channel INTEGER NOT NULL, temp REAL, hum REAL,
+    PRIMARY KEY (obs_utc, channel)
+);
 CREATE TABLE IF NOT EXISTS daily_forecasts (   -- one row per source, issue and local day
     source TEXT NOT NULL, issued_at INTEGER NOT NULL, day TEXT NOT NULL,   -- day 'YYYY-MM-DD' London
     tmax REAL, tmin REAL, pop_day REAL, pop_night REAL, qpf REAL, wind REAL, phrase TEXT,
@@ -142,7 +146,18 @@ def fetch_garden():
         except (ValueError, IndexError):
             return None   # '--' when a sensor isn't reporting
     wh25 = (d.get('wh25') or [{}])[0]
+    aisle = {}   # WN31 sensors, keyed by channel number; only those that are paired appear
+    for c in d.get('ch_aisle') or []:
+        try:
+            ch = int(c['channel'])
+        except (KeyError, ValueError, TypeError):
+            continue
+        t = num(c.get('temp'))
+        if t is not None and str(c.get('unit', 'C')).upper().startswith('F'):
+            t = round((t - 32) * 5 / 9, 1)
+        aisle[ch] = {'temp': t, 'humidity': num(c.get('humidity')), 'name': (c.get('name') or '').strip()}
     return {
+        'aisle': aisle,
         'garden': {'temp': num(common.get('0x02', {}).get('val')), 'humidity': num(common.get('0x07', {}).get('val')),
                    'dewpoint': num(common.get('0x03', {}).get('val'))},
         'shed': {'temp': num(wh25.get('intemp')), 'humidity': num(wh25.get('inhumi'))},
@@ -164,6 +179,9 @@ def log_garden(g=None):
                         'VALUES (?,?,?,?,?,0)', ('GARDEN', now, g['garden']['temp'], g['garden']['dewpoint'], g['pressure']))
             con.execute('INSERT OR IGNORE INTO garden_log VALUES (?,?,?,?,?,?)',
                         (now, g['garden']['temp'], g['garden']['humidity'], g['shed']['temp'], g['shed']['humidity'], g['pressure']))
+            con.executemany('INSERT OR IGNORE INTO wn31_log VALUES (?,?,?,?)',
+                            [(now, ch, o['temp'], o['humidity']) for ch, o in g.get('aisle', {}).items()
+                             if o['temp'] is not None])
             return con.total_changes - before
     except Exception as e:
         print(f'garden poll failed: {e}')
@@ -312,10 +330,14 @@ def history(hours=72):
                 "SELECT valid_utc, temp FROM (SELECT valid_utc, temp, MIN(lead_h) FROM forecasts "
                 "WHERE source='openmeteo' AND lead_h >= 0 AND valid_utc >= ? AND valid_utc <= strftime('%Y-%m-%dT%H:%MZ','now') "
                 'AND temp IS NOT NULL GROUP BY valid_utc) ORDER BY valid_utc', (since,))]
-        return {'garden': garden, 'forecast': fc}
+            wn31 = {}
+            for t, ch, temp, hum in con.execute(
+                    'SELECT obs_utc, channel, temp, hum FROM wn31_log WHERE obs_utc >= ? ORDER BY obs_utc', (since,)):
+                wn31.setdefault(ch, []).append([ms(t), temp, hum])
+        return {'garden': garden, 'forecast': fc, 'wn31': wn31}
     except Exception as e:
         print(f'history failed: {e}')
-        return {'garden': [], 'forecast': []}
+        return {'garden': [], 'forecast': [], 'wn31': {}}
 
 
 def report(station='EGLL'):

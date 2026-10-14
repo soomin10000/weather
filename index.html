@@ -647,6 +647,7 @@
       <div class="w-note" id="shed-hum"></div>
       <div class="w-sub" id="shed-note"></div>
     </div>
+    <!-- WN31 channel tiles are added here by script as sensors report -->
   </section>
   </div>
 
@@ -1466,6 +1467,9 @@
   }
   drawBlend(); setInterval(drawBlend, 600000);
 
+  /* WN31 channel sensors (Ecowitt): tiles are created for whichever channels report */
+  const WN31_COLS = ['#7ee787', '#d2a8ff', '#79c0ff', '#ffa657', '#ff7b72', '#e3b341', '#56d4dd', '#f778ba'];
+  const wn31Names = {};
   let histHours = 72;
   async function drawHistory() {
     try {
@@ -1474,6 +1478,9 @@
       const temp = [
         { name: 'Garden',   color: '#ffd21f', pts: col(1), gap: 3600e3 },
         { name: 'Shed',     color: '#ff8a65', pts: col(3), gap: 3600e3 },
+        ...Object.entries(h.wn31 || {}).map(([ch, rows], i) => ({
+          name: wn31Names[ch] || 'Ch ' + ch, color: WN31_COLS[i % WN31_COLS.length], gap: 3600e3,
+          pts: rows.filter(r => r[1] != null).map(r => [r[0], r[1]]) })),
         { name: 'Forecast', color: '#ffffff', dash: '4 3', pts: h.forecast },
       ].filter(s => s.pts.length);
       drawChart(document.getElementById('hist-temp'), temp, '°C', 1);
@@ -1581,6 +1588,25 @@
       };
       sensor('garden', gd?.garden, o => o.dewpoint != null ? `Dew point ${fmt(o.dewpoint, 1)}°` : '');
       sensor('shed', gd?.shed, () => gd.pressure != null ? `${fmt(gd.pressure, 0)} hPa` : '');
+
+      /* WN31 channels: one tile per paired channel, added on first sight */
+      const grid = document.querySelector('.widgets');
+      const seen = new Set(Object.keys(gd?.aisle || {}));
+      document.querySelectorAll('.wn31-tile').forEach(el => { if (!seen.has(el.dataset.ch)) el.remove(); });
+      for (const [ch, o] of Object.entries(gd?.aisle || {})) {
+        wn31Names[ch] = o.name || 'Ch ' + ch;
+        let el = grid.querySelector(`.wn31-tile[data-ch="${ch}"]`);
+        if (!el) {
+          el = document.createElement('div');
+          el.className = 'panel widget wn31-tile';
+          el.dataset.ch = ch;
+          el.innerHTML = '<h2></h2><div class="w-val"></div><div class="w-note"></div><div class="w-sub">WN31</div>';
+          grid.appendChild(el);
+        }
+        el.querySelector('h2').textContent = wn31Names[ch];   /* textContent: the name is user-supplied */
+        el.querySelector('.w-val').innerHTML = o.temp != null ? `${fmt(o.temp, 1)}<small>°C</small>` : '—';
+        el.querySelector('.w-note').textContent = o.humidity != null ? `${fmt(o.humidity, 0)}% humidity` : '';
+      }
 
       const when = j.fetched_at ? new Date(j.fetched_at * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
       document.getElementById('updated').textContent = mo
