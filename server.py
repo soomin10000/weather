@@ -476,6 +476,8 @@ def poll_loop():
 
         try:
             g = forecast_log.fetch_garden()
+            for ch, o in g.get('aisle', {}).items():   # names set in config unless the gateway supplies one
+                o['name'] = o['name'] or str((cfg.get('wn31_names') or {}).get(str(ch), ''))
             with _lock:
                 _state['garden'] = g
         except Exception as e:

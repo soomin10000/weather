@@ -5,5 +5,8 @@
   "server_port": 8186,
   "poll_interval": 600,
   "warnings_region": "se",
-  "bpf_site": "00351409"
+  "bpf_site": "00351409",
+  "wn31_names": {
+    "1": "Greenhouse"
+  }
 }

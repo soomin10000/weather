@@ -285,6 +285,7 @@ def blend(log=False):
         with _lock, _db() as con:
             w = blend_weights(con)
             hours = {}
+            raw = {}   # each source's own forecast, uncorrected, for the page to draw
             for src in BLEND_SOURCES:
                 issued = con.execute('SELECT MAX(issued_at) FROM forecasts WHERE source=?', (src,)).fetchone()[0]
                 if not issued or now - issued > 6 * 3600:
@@ -296,6 +297,7 @@ def blend(log=False):
                     if t < now - 1800:
                         continue
                     lead = round((t - now) / 3600)
+                    raw.setdefault(src, []).append([valid, temp])
                     bias, wt, _ = w[(src, _bucket(lead))]
                     hours.setdefault(valid, []).append((temp - bias, wt, lead))
             out = []
@@ -308,12 +310,12 @@ def blend(log=False):
                                 "VALUES ('blend', ?, ?, ?, ?)",
                                 [(int(now), v, lead, t) for v, t, lead in out if 0 <= lead <= MAX_LEAD_H])
                 _last['blend'] = now
-        return {'hourly': [[v, t] for v, t, _ in out],
+        return {'hourly': [[v, t] for v, t, _ in out], 'sources': raw,
                 'weights': {f'{s}/{["0-5h", "6-23h", "24h+"][b]}': {'bias': round(x[0], 2), 'weight': round(x[1], 2), 'n': x[2]}
                             for (s, b), x in w.items()}}
     except Exception as e:
         print(f'blend failed: {e}')
-        return {'hourly': [], 'weights': {}}
+        return {'hourly': [], 'sources': {}, 'weights': {}}
 
 
 def history(hours=72):

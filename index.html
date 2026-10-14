@@ -364,6 +364,21 @@
       border: 1px solid var(--hair); border-radius: 99px; padding: 0.2rem 0.7rem; cursor: pointer; }
     .hist-tabs button.on { background: var(--tab); color: var(--tab-ink); border-color: transparent; font-weight: 600; }
     .hist-h { font-size: 0.8rem; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin: 0.6rem 0 0.1rem; }
+    .hist-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-top: 0.4rem; }
+    .hist-card { font: inherit; text-align: left; color: inherit; cursor: pointer; padding: 0.55rem 0.7rem 0.45rem;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--hair); border-radius: 0.8rem; }
+    .hist-card:hover, .hist-card:focus-visible { border-color: var(--ink-3); }
+    .hist-card b { display: block; font-size: 0.78rem; font-weight: 600; color: var(--ink-2); }
+    .hist-card .hv { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .hist-card .hv small { font-size: 0.75rem; font-weight: 500; margin-left: 0.15em; }
+    .hist-card svg { width: 100%; height: 38px; display: block; margin-top: 0.2rem; }
+    .hist-dlg { width: min(680px, calc(100vw - 1.5rem)); border: 1px solid var(--hair); border-radius: 1rem;
+      background: #0d1b36; color: var(--ink-1, #fff); padding: 0.9rem 1rem 1rem; }
+    .hist-dlg::backdrop { background: rgba(0,0,0,0.6); }
+    .hist-dlg-head { display: flex; justify-content: space-between; align-items: center; }
+    .hist-dlg-head h2 { margin: 0; }
+    .hist-dlg-head button { font: inherit; font-size: 1.6rem; line-height: 1; color: inherit; background: none; border: 0; cursor: pointer; }
+    .hist-dlg-stats { font-size: 0.9rem; color: var(--ink-2); margin: 0.3rem 0 0.5rem; }
     .hist-svg { width: 100%; height: 200px; display: block; overflow: visible; }
     .hist-svg.hist-short { height: 110px; }
     .hist-svg text { fill: var(--ink-3); font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -422,6 +437,24 @@
       .page { padding-top: 3.5rem; }
       .hero-temp { font-size: 7.5rem; }
       .widgets { grid-template-columns: repeat(3, 1fr); }
+    }
+    /* Laptop/desktop: hero on the left (sticky), everything else in a wide right column */
+    @media (min-width: 1000px) {
+      html:not(.hub) .page {
+        max-width: 1280px; padding-left: 2rem; padding-right: 2rem;
+        display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); column-gap: 1.5rem; align-items: start;
+      }
+      html:not(.hub) .lead { grid-column: 1; grid-row: 1 / span 6; position: sticky; top: 1.5rem;
+        display: flex; flex-direction: column; gap: 0.75rem; }
+      html:not(.hub) .page > :not(.lead) { grid-column: 2; min-width: 0; }
+      html:not(.hub) .detail { display: flex; flex-direction: column; gap: 0.75rem; }
+      html:not(.hub) .widgets { grid-template-columns: repeat(4, 1fr); }
+      html:not(.hub) .hist-svg { height: 240px; }
+      /* history panel lives under the caption here (moved by script), one card per row */
+      html:not(.hub) .lead { max-height: calc(100vh - 3rem); overflow-y: auto; scrollbar-width: none; }
+      html:not(.hub) .lead::-webkit-scrollbar { display: none; }
+      html:not(.hub) .lead #p-hist .hist-cards { grid-template-columns: 1fr; gap: 0.5rem; }
+      html:not(.hub) .lead #p-hist .hist-card svg { height: 34px; }
     }
     @media (prefers-reduced-motion: reduce) {
       .caption.wipe .cap-bar { animation: none; }
@@ -655,6 +688,7 @@
     <h2>Blended forecast</h2>
     <div class="w-sub" id="blend-sum"></div>
     <svg class="hist-svg" id="blend-temp" role="img" aria-label="Blended temperature forecast, next 48 hours"></svg>
+    <div class="hist-key" id="blend-key"></div>
     <div class="w-sub" id="blend-note"></div>
   </section>
 
@@ -663,13 +697,16 @@
     <div class="hist-tabs" id="hist-tabs">
       <button data-h="24">24h</button><button data-h="72" class="on">3 days</button><button data-h="168">7 days</button>
     </div>
-    <h3 class="hist-h">Temperature</h3>
-    <svg class="hist-svg" id="hist-temp" role="img" aria-label="Temperature history"></svg>
-    <div class="hist-key" id="hist-key"></div>
-    <h3 class="hist-h">Pressure</h3>
-    <svg class="hist-svg hist-short" id="hist-pres" role="img" aria-label="Pressure history"></svg>
+    <div class="hist-cards" id="hist-cards"></div>
     <div class="w-sub" id="hist-note"></div>
   </section>
+
+  <dialog id="hist-dlg" class="hist-dlg">
+    <div class="hist-dlg-head"><h2 id="hist-dlg-title"></h2><button id="hist-dlg-x" aria-label="Close">&times;</button></div>
+    <div class="hist-dlg-stats" id="hist-dlg-stats"></div>
+    <svg class="hist-svg" id="hist-dlg-svg" role="img"></svg>
+    <div class="hist-key" id="hist-dlg-key"></div>
+  </dialog>
 
   <footer class="p-footer" id="updated"></footer>
 </main>
@@ -1407,12 +1444,12 @@
   let firstRender = true;
   /* History charts: inline SVG, no library. Series are [{name, color, dash?, pts:[[ms,v],...]}] */
   const SVGNS = 'http://www.w3.org/2000/svg';
-  function drawChart(svg, series, unit, dec) {
+  function drawChart(svg, series, unit, dec, mini) {
     svg.innerHTML = '';
     const all = series.flatMap(s => s.pts);
     if (!all.length) return;
     const W = svg.clientWidth || 600, H = svg.clientHeight || 200;
-    const m = { l: 34, r: 6, t: 8, b: 18 };
+    const m = mini ? { l: 2, r: 4, t: 4, b: 4 } : { l: 34, r: 6, t: 8, b: 18 };
     const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
     const x0 = Math.min(...xs), x1 = Math.max(...xs, x0 + 1);
     let y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -1422,14 +1459,14 @@
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     const el = (n, a, txt) => { const e = document.createElementNS(SVGNS, n);
       for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; };
-    for (let i = 0; i <= 3; i++) {
+    for (let i = 0; i <= 3 && !mini; i++) {
       const v = y0 + (y1 - y0) * i / 3, y = Y(v);
       el('line', { x1: m.l, x2: W - m.r, y1: y, y2: y, class: 'grid' });
       el('text', { x: m.l - 4, y: y + 3, 'text-anchor': 'end' }, v.toFixed(dec));
     }
     /* x labels: midnight ticks over multi-day spans, otherwise every few hours */
     const span = x1 - x0, step = span > 36 * 3600e3 ? 24 * 3600e3 : 6 * 3600e3;
-    for (let t = Math.ceil(x0 / step) * step; t <= x1; t += step) {
+    for (let t = Math.ceil(x0 / step) * step; t <= x1 && !mini; t += step) {
       const d = new Date(t);
       el('text', { x: X(t), y: H - 4, 'text-anchor': 'middle' },
          step >= 24 * 3600e3 ? d.toLocaleDateString('en-GB', { weekday: 'short' })
@@ -1458,7 +1495,26 @@
       const day = pts.slice(0, 24).map(p => p[1]);
       document.getElementById('blend-sum').textContent =
         `Next 24 hours: ${Math.round(Math.min(...day))}° to ${Math.round(Math.max(...day))}°`;
-      drawChart(document.getElementById('blend-temp'), [{ name: 'Blend', color: '#ffd21f', pts, gap: 2 * 3600e3 }], '°C', 1);
+      /* past 24 h of actuals from the garden sensor, then the blend and each source's own forecast */
+      let actual = [];
+      try {
+        const h = await fetch('/api/history?hours=24').then(r => r.json());
+        actual = h.garden.filter(r => r[1] != null).map(r => [r[0], r[1]]);
+      } catch (e) { /* chart still works without the actuals */ }
+      const SRC = { openmeteo: ['Open-Meteo', '#8fd0ff'], metoffice: ['Met Office', '#7ee787'], bpf: ['Met Office BPF', '#d2a8ff'] };
+      const SRC_COLS = ['#8fd0ff', '#7ee787', '#d2a8ff', '#ffa657'];
+      const t1 = pts[pts.length - 1][0];
+      const srcs = Object.entries(b.sources || {}).map(([k, rows], i) => ({
+        name: (SRC[k] || [k])[0], color: (SRC[k] || [0, SRC_COLS[i % 4]])[1], dash: '3 3',
+        pts: rows.map(([t, v]) => [Date.parse(t), v]).filter(p => p[0] <= t1), gap: 2 * 3600e3 }));
+      const series = [
+        { name: 'Actual (garden)', color: '#ffffff', pts: actual, gap: 3600e3 },
+        ...srcs,
+        { name: 'Blend', color: '#ffd21f', pts, gap: 2 * 3600e3 },
+      ].filter(s => s.pts.length);
+      drawChart(document.getElementById('blend-temp'), series, '°C', 1);
+      document.getElementById('blend-key').innerHTML = series.map(s =>
+        `<span><i style="background:${s.color}${s.dash ? ';opacity:.7' : ''}"></i>${s.name}</span>`).join('');
       const n = Math.min(...Object.values(b.weights).map(w => w.n));
       document.getElementById('blend-note').textContent = n < 48
         ? `Still learning from the garden sensor (${n} of 48 hours), so sources are weighted equally for now.`
@@ -1471,27 +1527,67 @@
   const WN31_COLS = ['#7ee787', '#d2a8ff', '#79c0ff', '#ffa657', '#ff7b72', '#e3b341', '#56d4dd', '#f778ba'];
   const wn31Names = {};
   let histHours = 72;
+  let histCards = [];
   async function drawHistory() {
     try {
       const h = await fetch('/api/history?hours=' + histHours).then(r => r.json());
       const col = i => h.garden.filter(r => r[i] != null).map(r => [r[0], r[i]]);
-      const temp = [
-        { name: 'Garden',   color: '#ffd21f', pts: col(1), gap: 3600e3 },
-        { name: 'Shed',     color: '#ff8a65', pts: col(3), gap: 3600e3 },
+      const T = { unit: '°C', dec: 1 };
+      histCards = [
+        { name: 'Garden', color: '#ffd21f', pts: col(1), ...T, extra: [{ name: 'Forecast', color: '#ffffff', dash: '4 3', pts: h.forecast }] },
+        { name: 'Shed',   color: '#ff8a65', pts: col(3), ...T },
         ...Object.entries(h.wn31 || {}).map(([ch, rows], i) => ({
-          name: wn31Names[ch] || 'Ch ' + ch, color: WN31_COLS[i % WN31_COLS.length], gap: 3600e3,
+          name: wn31Names[ch] || 'Ch ' + ch, color: WN31_COLS[i % WN31_COLS.length], ...T,
           pts: rows.filter(r => r[1] != null).map(r => [r[0], r[1]]) })),
-        { name: 'Forecast', color: '#ffffff', dash: '4 3', pts: h.forecast },
-      ].filter(s => s.pts.length);
-      drawChart(document.getElementById('hist-temp'), temp, '°C', 1);
-      document.getElementById('hist-key').innerHTML = temp.map(s =>
-        `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
-      drawChart(document.getElementById('hist-pres'), [{ name: 'Pressure', color: '#8fd0ff', pts: col(5), gap: 3600e3 }], 'hPa', 0);
+        { name: 'Pressure', color: '#8fd0ff', pts: col(5), unit: 'hPa', dec: 0 },
+      ].filter(c => c.pts.length);
+      const box = document.getElementById('hist-cards');
+      box.innerHTML = '';
+      histCards.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.className = 'hist-card'; b.dataset.i = i;
+        const last = c.pts[c.pts.length - 1][1];
+        b.innerHTML = '<b></b><div class="hv"></div><svg aria-hidden="true"></svg>';
+        b.querySelector('b').textContent = c.name;
+        b.querySelector('.hv').innerHTML = `${last.toFixed(c.dec)}<small>${c.unit}</small>`;
+        box.appendChild(b);
+        drawChart(b.querySelector('svg'), [{ ...c, gap: 3600e3 }], c.unit, c.dec, true);
+      });
       document.getElementById('hist-note').textContent = h.garden.length < 2
         ? 'Garden and Shed logging started 6 Oct, so there is not much to see yet.'
-        : 'Forecast is the latest Open-Meteo run made before each hour.';
+        : 'Tap a graph for the full chart.';
     } catch (e) { console.warn('history failed', e); }
   }
+  /* Wide screens: History sits in the left column under the caption; otherwise before the footer */
+  (function placeHistory() {
+    const mq = window.matchMedia('(min-width: 1000px)');
+    const place = () => {
+      const p = document.getElementById('p-hist');
+      if (document.documentElement.classList.contains('hub')) return;
+      const lead = document.querySelector('.lead'), foot = document.getElementById('updated');
+      if (mq.matches) lead.appendChild(p); else foot.parentNode.insertBefore(p, foot);
+      drawHistory();
+    };
+    mq.addEventListener('change', place);
+    place();
+  })();
+  document.getElementById('hist-cards').addEventListener('click', e => {
+    const b = e.target.closest('.hist-card'); if (!b) return;
+    const c = histCards[+b.dataset.i]; if (!c) return;
+    const dlg = document.getElementById('hist-dlg');
+    const vs = c.pts.map(p => p[1]);
+    const f = v => v.toFixed(c.dec) + c.unit;
+    document.getElementById('hist-dlg-title').textContent = c.name;
+    document.getElementById('hist-dlg-stats').textContent =
+      `Now ${f(vs[vs.length - 1])} · low ${f(Math.min(...vs))} · high ${f(Math.max(...vs))} · last ${histHours >= 48 ? histHours / 24 + ' days' : histHours + ' hours'}`;
+    const ser = [{ ...c, gap: 3600e3 }, ...(c.extra || []).filter(x => x.pts.length)];
+    document.getElementById('hist-dlg-key').innerHTML = ser.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
+    dlg.showModal();
+    drawChart(document.getElementById('hist-dlg-svg'), ser, c.unit, c.dec);
+  });
+  const histDlg = document.getElementById('hist-dlg');
+  document.getElementById('hist-dlg-x').addEventListener('click', () => histDlg.close());
+  histDlg.addEventListener('click', e => { if (e.target === histDlg) histDlg.close(); });
   document.getElementById('hist-tabs').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     histHours = +b.dataset.h;
