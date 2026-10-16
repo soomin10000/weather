@@ -364,6 +364,9 @@
       border: 1px solid var(--hair); border-radius: 99px; padding: 0.2rem 0.7rem; cursor: pointer; }
     .hist-tabs button.on { background: var(--tab); color: var(--tab-ink); border-color: transparent; font-weight: 600; }
     .hist-h { font-size: 0.8rem; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin: 0.6rem 0 0.1rem; }
+    .widget[data-g], .wn31-tile { cursor: pointer; }
+    .widget[data-g]:hover, .widget[data-g]:focus-visible, .wn31-tile:hover { outline: 1px solid var(--ink-3); }
+    .hist-dlg-lines { font-size: 0.95rem; line-height: 1.7; }
     .hist-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-top: 0.4rem; }
     .hist-card { font: inherit; text-align: left; color: inherit; cursor: pointer; padding: 0.55rem 0.7rem 0.45rem;
       background: rgba(255,255,255,0.06); border: 1px solid var(--hair); border-radius: 0.8rem; }
@@ -372,7 +375,7 @@
     .hist-card .hv { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
     .hist-card .hv small { font-size: 0.75rem; font-weight: 500; margin-left: 0.15em; }
     .hist-card svg { width: 100%; height: 38px; display: block; margin-top: 0.2rem; }
-    .hist-dlg { width: min(680px, calc(100vw - 1.5rem)); border: 1px solid var(--hair); border-radius: 1rem;
+    .hist-dlg { margin: auto; width: min(680px, calc(100vw - 1.5rem)); border: 1px solid var(--hair); border-radius: 1rem;
       background: #0d1b36; color: var(--ink-1, #fff); padding: 0.9rem 1rem 1rem; }
     .hist-dlg::backdrop { background: rgba(0,0,0,0.6); }
     .hist-dlg-head { display: flex; justify-content: space-between; align-items: center; }
@@ -608,7 +611,7 @@
   </section>
 
   <section class="widgets">
-    <div class="panel widget w-wind">
+    <div data-g="wind" tabindex="0" role="button" class="panel widget w-wind">
       <h2>Wind</h2>
       <div class="w-val" id="wind-speed">—</div>
       <div class="w-note" id="wind-dir"></div>
@@ -628,7 +631,7 @@
       <div class="w-sub" id="wind-gust"></div>
     </div>
 
-    <div class="panel widget">
+    <div data-g="humidity" tabindex="0" role="button" class="panel widget">
       <h2>Humidity</h2>
       <div class="ring-wrap">
         <svg class="ring-svg" viewBox="0 0 100 100" aria-hidden="true">
@@ -640,7 +643,7 @@
       <div class="w-sub" id="hum-note"></div>
     </div>
 
-    <div class="panel widget">
+    <div data-g="uv" tabindex="0" role="button" class="panel widget">
       <h2>UV index</h2>
       <div class="w-val" id="uv">—</div>
       <div class="w-note" id="uv-label"></div>
@@ -648,37 +651,43 @@
       <div class="w-sub" id="uv-peak"></div>
     </div>
 
-    <div class="panel widget">
+    <div data-g="rain" tabindex="0" role="button" class="panel widget">
       <h2>Rain</h2>
       <div class="w-val" id="rain">—<small>mm</small></div>
       <div class="w-note">in the last hour</div>
       <div class="w-sub" id="rain-today"></div>
     </div>
 
-    <div class="panel widget">
+    <div data-g="sun" tabindex="0" role="button" class="panel widget">
       <h2 id="sun-label">Sunset</h2>
       <div class="w-val" id="sun-next">—</div>
       <div class="w-sub" id="sun-other"></div>
     </div>
 
-    <div class="panel widget">
+    <div data-g="pressure" tabindex="0" role="button" class="panel widget">
       <h2>Pressure</h2>
       <div class="w-val" id="pressure">—<small>hPa</small></div>
       <div class="w-sub" id="pres-note"></div>
     </div>
 
-    <div class="panel widget">
+    <div data-g="garden" tabindex="0" role="button" class="panel widget">
       <h2>Garden</h2>
       <div class="w-val" id="garden-temp">—</div>
       <div class="w-note" id="garden-hum"></div>
       <div class="w-sub" id="garden-note"></div>
     </div>
 
-    <div class="panel widget">
+    <div data-g="shed" tabindex="0" role="button" class="panel widget">
       <h2>Shed</h2>
       <div class="w-val" id="shed-temp">—</div>
       <div class="w-note" id="shed-hum"></div>
       <div class="w-sub" id="shed-note"></div>
+    </div>
+    <div data-g="raing" tabindex="0" role="button" class="panel widget" id="w-raing" hidden>
+      <h2>Rain gauge</h2>
+      <div class="w-val" id="raing-day">—</div>
+      <div class="w-note" id="raing-rate"></div>
+      <div class="w-sub" id="raing-note"></div>
     </div>
     <!-- WN31 channel tiles are added here by script as sensors report -->
   </section>
@@ -705,6 +714,7 @@
     <div class="hist-dlg-head"><h2 id="hist-dlg-title"></h2><button id="hist-dlg-x" aria-label="Close">&times;</button></div>
     <div class="hist-dlg-stats" id="hist-dlg-stats"></div>
     <svg class="hist-svg" id="hist-dlg-svg" role="img"></svg>
+    <div class="hist-dlg-lines" id="hist-dlg-lines" hidden></div>
     <div class="hist-key" id="hist-dlg-key"></div>
   </dialog>
 
@@ -1527,7 +1537,7 @@
   const WN31_COLS = ['#7ee787', '#d2a8ff', '#79c0ff', '#ffa657', '#ff7b72', '#e3b341', '#56d4dd', '#f778ba'];
   const wn31Names = {};
   let histHours = 72;
-  let histCards = [];
+  let histCards = [], lastJ = null;
   async function drawHistory() {
     try {
       const h = await fetch('/api/history?hours=' + histHours).then(r => r.json());
@@ -1540,6 +1550,7 @@
           name: wn31Names[ch] || 'Ch ' + ch, color: WN31_COLS[i % WN31_COLS.length], ...T,
           pts: rows.filter(r => r[1] != null).map(r => [r[0], r[1]]) })),
         { name: 'Pressure', color: '#8fd0ff', pts: col(5), unit: 'hPa', dec: 0 },
+        { name: 'Rain today', color: '#4fc3f7', pts: (h.rain || []).filter(r => r[2] != null).map(r => [r[0], r[2]]), unit: 'mm', dec: 1 },
       ].filter(c => c.pts.length);
       const box = document.getElementById('hist-cards');
       box.innerHTML = '';
@@ -1571,19 +1582,77 @@
     mq.addEventListener('change', place);
     place();
   })();
+  /* One detail dialog for every card and gauge tile: c = {name, color, pts, unit, dec, extra, note} or {name, lines} */
+  function openDetail(c) {
+    const dlg = document.getElementById('hist-dlg'), svg = document.getElementById('hist-dlg-svg');
+    const stats = document.getElementById('hist-dlg-stats'), lines = document.getElementById('hist-dlg-lines');
+    document.getElementById('hist-dlg-title').textContent = c.name;
+    lines.hidden = !c.lines; svg.style.display = c.lines ? 'none' : '';
+    document.getElementById('hist-dlg-key').innerHTML = '';
+    if (c.lines) {
+      lines.innerHTML = '';
+      c.lines.forEach(t => { const d = document.createElement('div'); d.textContent = t; lines.appendChild(d); });
+      stats.textContent = c.note || '';
+      dlg.showModal(); return;
+    }
+    const vs = c.pts.map(p => p[1]);
+    const f = v => v.toFixed(c.dec) + (/^[a-z]/i.test(c.unit) ? ' ' : '') + c.unit;
+    const nowPt = c.pts.reduce((m, p) => Math.abs(p[0] - Date.now()) < Math.abs(m[0] - Date.now()) ? p : m, c.pts[0] || [0, 0]);
+    stats.textContent = (vs.length ? `Now ${f(nowPt[1])} · low ${f(Math.min(...vs))} · high ${f(Math.max(...vs))}` : 'No data yet')
+      + (c.note ? ' · ' + c.note : '');
+    const ser = [{ ...c, gap: 3600e3 }, ...(c.extra || [])].filter(x => x.pts.length);
+    document.getElementById('hist-dlg-key').innerHTML = ser.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
+    dlg.showModal();
+    drawChart(svg, ser, c.unit, c.dec);
+  }
+  const span = () => histHours >= 48 ? histHours / 24 + ' days' : histHours + ' hours';
   document.getElementById('hist-cards').addEventListener('click', e => {
     const b = e.target.closest('.hist-card'); if (!b) return;
     const c = histCards[+b.dataset.i]; if (!c) return;
-    const dlg = document.getElementById('hist-dlg');
-    const vs = c.pts.map(p => p[1]);
-    const f = v => v.toFixed(c.dec) + c.unit;
-    document.getElementById('hist-dlg-title').textContent = c.name;
-    document.getElementById('hist-dlg-stats').textContent =
-      `Now ${f(vs[vs.length - 1])} · low ${f(Math.min(...vs))} · high ${f(Math.max(...vs))} · last ${histHours >= 48 ? histHours / 24 + ' days' : histHours + ' hours'}`;
-    const ser = [{ ...c, gap: 3600e3 }, ...(c.extra || []).filter(x => x.pts.length)];
-    document.getElementById('hist-dlg-key').innerHTML = ser.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
-    dlg.showModal();
-    drawChart(document.getElementById('hist-dlg-svg'), ser, c.unit, c.dec);
+    openDetail({ ...c, note: 'last ' + span() });
+  });
+
+  /* Gauge tiles: model tiles chart the last 24 h + next 48 h of Open-Meteo hourly data, with the
+     garden station's actuals alongside where it measures the same thing; sensor tiles reuse their history card. */
+  async function gaugeDetail(g) {
+    if (g.startsWith('wn31:') || g === 'garden' || g === 'shed' || g === 'raing') {
+      const name = g === 'garden' ? 'Garden' : g === 'shed' ? 'Shed' : g === 'raing' ? 'Rain today' : (wn31Names[g.slice(5)] || 'Ch ' + g.slice(5));
+      if (!histCards.length) await drawHistory();
+      const c = histCards.find(x => x.name === name);
+      return c ? { ...c, note: 'last ' + span() } : { name, lines: ['No history logged yet.'] };
+    }
+    const j = lastJ || {};
+    if (g === 'sun') {
+      const D = j.forecast?.daily; if (!D) return { name: 'Sun', lines: ['No forecast loaded.'] };
+      const wk = { weekday: 'short', day: 'numeric', month: 'short' };
+      return { name: 'Sunrise and sunset', note: 'Open-Meteo',
+        lines: D.time.map((t, i) => `${new Date(t + 'T12:00').toLocaleDateString('en-GB', wk)}: up ${clockHM(D.sunrise[i])}, down ${clockHM(D.sunset[i])}`) };
+    }
+    const H = j.forecast?.hourly;
+    if (!H) return { name: g, lines: ['No forecast loaded.'] };
+    const now = Date.now(), lo = now - 24 * 3600e3, hi = now + 48 * 3600e3;
+    const fc = k => H.time.map((t, i) => [Date.parse(t), H[k]?.[i]]).filter(p => p[1] != null && p[0] >= lo && p[0] <= hi);
+    let act = { garden: [], rain: [] };
+    try { const h = await fetch('/api/history?hours=24').then(r => r.json()); act = { garden: h.garden, rain: h.rain || [] }; } catch (e) {}
+    const col = i => act.garden.filter(r => r[i] != null).map(r => [r[0], r[i]]);
+    const FC = '#8fd0ff', ACT = '#ffffff', note = 'last 24 h and next 48 h (Open-Meteo forecast)';
+    switch (g) {
+      case 'wind': return { name: 'Wind', color: FC, pts: fc('wind_speed_10m'), unit: ' mph', dec: 0, note,
+        extra: [{ name: 'Gusts', color: '#ffa657', pts: fc('wind_gusts_10m') }] };
+      case 'humidity': return { name: 'Humidity', color: FC, pts: fc('relative_humidity_2m'), unit: '%', dec: 0, note,
+        extra: [{ name: 'Garden (actual)', color: ACT, pts: col(2) }] };
+      case 'uv': return { name: 'UV index', color: '#ffd21f', pts: fc('uv_index'), unit: '', dec: 1, note };
+      case 'rain': return { name: 'Rain', color: FC, pts: fc('precipitation'), unit: ' mm/h', dec: 1, note,
+        extra: [{ name: 'Rain gauge (rate)', color: '#4fc3f7', pts: act.rain.filter(r => r[1] != null).map(r => [r[0], r[1]]) }] };
+      case 'pressure': return { name: 'Pressure', color: FC, pts: fc('surface_pressure'), unit: ' hPa', dec: 0, note,
+        extra: [{ name: 'Gateway (actual)', color: ACT, pts: col(5) }] };
+    }
+    return { name: g, lines: ['Nothing to show.'] };
+  }
+  const openGauge = async el => { const g = el?.dataset.g; if (g) openDetail(await gaugeDetail(g)); };
+  document.querySelector('.widgets').addEventListener('click', e => openGauge(e.target.closest('[data-g]')));
+  document.querySelector('.widgets').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('[data-g]'); if (t) { e.preventDefault(); openGauge(t); } }
   });
   const histDlg = document.getElementById('hist-dlg');
   document.getElementById('hist-dlg-x').addEventListener('click', () => histDlg.close());
@@ -1600,6 +1669,7 @@
   async function refresh() {
     try {
       const j = await fetch('/api/weather').then(r => r.json());
+      lastJ = j;
       if (j.error && !j.data) { document.getElementById('condition').textContent = 'Error: ' + j.error; return; }
       const mo  = moFresh(j.metoffice) ? j.metoffice : null;
       /* Met Office values override Open-Meteo field by field; anything it lacks
@@ -1685,6 +1755,16 @@
       sensor('garden', gd?.garden, o => o.dewpoint != null ? `Dew point ${fmt(o.dewpoint, 1)}°` : '');
       sensor('shed', gd?.shed, () => gd.pressure != null ? `${fmt(gd.pressure, 0)} hPa` : '');
 
+      /* WN20 rain gauge: today's total, current rate, and week/month/year underneath */
+      const rg = gd?.rain;
+      document.getElementById('w-raing').hidden = !rg || rg.day == null;
+      if (rg && rg.day != null) {
+        document.getElementById('raing-day').innerHTML = `${fmt(rg.day, 1)}<small>mm today</small>`;
+        document.getElementById('raing-rate').textContent = rg.rate > 0 ? `Raining, ${fmt(rg.rate, 1)} mm/h` : 'Dry right now';
+        document.getElementById('raing-note').textContent =
+          `Week ${fmt(rg.week, 1)} · Month ${fmt(rg.month, 1)} mm`;
+      }
+
       /* WN31 channels: one tile per paired channel, added on first sight */
       const grid = document.querySelector('.widgets');
       const seen = new Set(Object.keys(gd?.aisle || {}));
@@ -1694,7 +1774,7 @@
         let el = grid.querySelector(`.wn31-tile[data-ch="${ch}"]`);
         if (!el) {
           el = document.createElement('div');
-          el.className = 'panel widget wn31-tile';
+          el.className = 'panel widget wn31-tile'; el.dataset.g = 'wn31:' + ch; el.tabIndex = 0; el.setAttribute('role', 'button');
           el.dataset.ch = ch;
           el.innerHTML = '<h2></h2><div class="w-val"></div><div class="w-note"></div><div class="w-sub">WN31</div>';
           grid.appendChild(el);

@@ -40,6 +40,10 @@ HOURLY_VARS = ','.join([
     'weather_code',
     'wind_gusts_10m',
     'is_day',
+    'relative_humidity_2m',   # gauge detail charts
+    'uv_index',
+    'precipitation',
+    'surface_pressure',
 ])
 DAILY_VARS = ','.join([
     'weather_code',

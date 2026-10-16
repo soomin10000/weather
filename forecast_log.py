@@ -73,6 +73,10 @@ CREATE TABLE IF NOT EXISTS wn31_log (   -- Ecowitt WN31 multi-channel temp/humid
     obs_utc TEXT NOT NULL, channel INTEGER NOT NULL, temp REAL, hum REAL,
     PRIMARY KEY (obs_utc, channel)
 );
+CREATE TABLE IF NOT EXISTS rain_log (   -- Ecowitt WN20 rain gauge: rate mm/h and running totals mm
+    obs_utc TEXT PRIMARY KEY,
+    rate REAL, day REAL, week REAL, month REAL, year REAL
+);
 CREATE TABLE IF NOT EXISTS daily_forecasts (   -- one row per source, issue and local day
     source TEXT NOT NULL, issued_at INTEGER NOT NULL, day TEXT NOT NULL,   -- day 'YYYY-MM-DD' London
     tmax REAL, tmin REAL, pop_day REAL, pop_night REAL, qpf REAL, wind REAL, phrase TEXT,
@@ -146,6 +150,11 @@ def fetch_garden():
         except (ValueError, IndexError):
             return None   # '--' when a sensor isn't reporting
     wh25 = (d.get('wh25') or [{}])[0]
+    def hpa(v):   # the gateway reports in whatever unit the app is set to (it flipped to mmHg once)
+        x = num(v)
+        u = str(v).split()[-1].lower() if v and ' ' in str(v) else 'hpa'
+        k = {'mmhg': 1.33322, 'inhg': 33.8639, 'kpa': 10.0}.get(u, 1.0)
+        return None if x is None else round(x * k, 2)
     aisle = {}   # WN31 sensors, keyed by channel number; only those that are paired appear
     for c in d.get('ch_aisle') or []:
         try:
@@ -156,12 +165,24 @@ def fetch_garden():
         if t is not None and str(c.get('unit', 'C')).upper().startswith('F'):
             t = round((t - 32) * 5 / 9, 1)
         aisle[ch] = {'temp': t, 'humidity': num(c.get('humidity')), 'name': (c.get('name') or '').strip()}
+    rain = None   # WN20 gauge; rate from the live list, totals from the named /get_rain_totals fields
+    if d.get('rain'):
+        rl = {r['id']: r for r in d['rain']}
+        try:
+            with urllib.request.urlopen(f'http://{GARDEN_HOST}/get_rain_totals', timeout=10) as r:
+                tot = json.loads(r.read())
+        except Exception:
+            tot = {}
+        rain = {'rate': num(rl.get('0x0E', {}).get('val')), 'last24h': num(rl.get('0x7C', {}).get('val')),
+                'day': num(tot.get('rainDay')), 'week': num(tot.get('rainWeek')),
+                'month': num(tot.get('rainMonth')), 'year': num(tot.get('rainYear')),
+                'battery': next((r.get('battery') for r in d['rain'] if 'battery' in r), None)}
     return {
-        'aisle': aisle,
+        'aisle': aisle, 'rain': rain,
         'garden': {'temp': num(common.get('0x02', {}).get('val')), 'humidity': num(common.get('0x07', {}).get('val')),
                    'dewpoint': num(common.get('0x03', {}).get('val'))},
         'shed': {'temp': num(wh25.get('intemp')), 'humidity': num(wh25.get('inhumi'))},
-        'pressure': num(wh25.get('rel')),
+        'pressure': hpa(wh25.get('rel')),
         'time': int(time.time()),
     }
 
@@ -182,6 +203,10 @@ def log_garden(g=None):
             con.executemany('INSERT OR IGNORE INTO wn31_log VALUES (?,?,?,?)',
                             [(now, ch, o['temp'], o['humidity']) for ch, o in g.get('aisle', {}).items()
                              if o['temp'] is not None])
+            rn = g.get('rain')
+            if rn and rn['day'] is not None:
+                con.execute('INSERT OR IGNORE INTO rain_log VALUES (?,?,?,?,?,?)',
+                            (now, rn['rate'], rn['day'], rn['week'], rn['month'], rn['year']))
             return con.total_changes - before
     except Exception as e:
         print(f'garden poll failed: {e}')
@@ -336,10 +361,12 @@ def history(hours=72):
             for t, ch, temp, hum in con.execute(
                     'SELECT obs_utc, channel, temp, hum FROM wn31_log WHERE obs_utc >= ? ORDER BY obs_utc', (since,)):
                 wn31.setdefault(ch, []).append([ms(t), temp, hum])
-        return {'garden': garden, 'forecast': fc, 'wn31': wn31}
+            rain = [[ms(t), *r] for t, *r in con.execute(
+                'SELECT obs_utc, rate, day FROM rain_log WHERE obs_utc >= ? ORDER BY obs_utc', (since,))]
+        return {'garden': garden, 'forecast': fc, 'wn31': wn31, 'rain': rain}
     except Exception as e:
         print(f'history failed: {e}')
-        return {'garden': [], 'forecast': [], 'wn31': {}}
+        return {'garden': [], 'forecast': [], 'wn31': {}, 'rain': []}
 
 
 def report(station='EGLL'):
